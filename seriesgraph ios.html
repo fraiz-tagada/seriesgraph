@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Grid notes (fidèle + export + fond + logo + mode seasonal/film) — iOS friendly</title>
+
+  <style>
+    :root{
+      --bg:#070a12;
+      --panel: rgba(255,255,255,.06);
+      --border: rgba(255,255,255,.10);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.62);
+
+      --tap: 44px;
+      --sheetPad: 12px;
+      --sheetRadius: 18px;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    }
+
+    .wrap{
+      max-width:980px;
+      margin:0 auto;
+      padding:16px;
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+
+    .ui{
+      border:1px solid var(--border);
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between
+    }
+    .left,.right{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center
+    }
+
+    button{
+      min-height: var(--tap);
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 9px 11px;
+      font-weight: 750;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+    }
+    button:active{transform: translateY(1px);}
+    .ghost{background: transparent;}
+
+    .switch{display:flex;align-items:center;gap:10px}
+    .switch span{color:var(--muted);font-weight:700;font-size:13px}
+
+    .toggle{
+      width:44px;height:26px;border-radius:999px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.16);
+      position:relative; padding:0; cursor:pointer;
+    }
+    .thumb{
+      width:20px;height:20px;border-radius:999px;
+      background: rgba(255,255,255,.86);
+      position:absolute;top:50%;left:3px;transform:translateY(-50%);
+      transition:left 160ms ease;
+    }
+    .toggle[aria-checked="true"] .thumb{left:21px;}
+
+    .legend{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:10px
+    }
+    .leg-item{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      font-size:13px;
+      color:var(--muted);
+      font-weight:700
+    }
+    .swatch{
+      width:14px;height:14px;border-radius:4px;
+      border:1px solid rgba(255,255,255,.18)
+    }
+
+    textarea{
+      width:100%;
+      min-height:140px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.14);
+      color: var(--text);
+      padding:12px;
+      outline:none;
+      font: 600 16px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; /* 16px => évite zoom iOS */
+      margin-top:10px;
+    }
+
+    .hint{color:var(--muted);font-size:13px;line-height:1.35;margin:8px 0 0}
+
+    label{
+      color:var(--muted);
+      font-size:13px;
+      font-weight:700;
+      display:flex;
+      align-items:center;
+      gap:8px
+    }
+
+    input[type="file"]{color:var(--muted);font-size:13px}
+
+    select{
+      min-height: var(--tap);
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding:7px 10px;
+      outline:none;
+      font-weight:750;
+      font-size:16px; /* 16px => évite zoom iOS */
+    }
+
+    canvas{
+      width:100%;
+      height:auto;
+      border-radius:18px;
+      display:block;
+      background:#000;
+      touch-action: manipulation;
+    }
+
+    .hidden{display:none !important;}
+
+    /* ===== iPhone/Safari iOS: UI bottom sheet ===== */
+    @media (max-width: 760px){
+      .ui{
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        margin: 0;
+        border-radius: var(--sheetRadius) var(--sheetRadius) 0 0;
+        padding: var(--sheetPad);
+        padding-bottom: calc(var(--sheetPad) + env(safe-area-inset-bottom));
+        z-index: 9999;
+        max-width: none;
+        border-left: none;
+        border-right: none;
+        max-height: 55vh;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .wrap{
+        padding: 12px;
+        padding-bottom: calc(55vh + env(safe-area-inset-bottom) + 12px);
+      }
+
+      .row{flex-direction: column; align-items: stretch; justify-content:flex-start;}
+      .left,.right{width:100%; justify-content:flex-start;}
+      .hint{display:none;}
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="ui" id="ui">
+    <div class="row">
+      <div class="left">
+        <div class="switch">
+          <span>Card mode</span>
+          <button id="modeBtn" class="toggle" type="button" role="switch" aria-checked="false" title="Toggle seasonal/film cards view">
+            <span class="thumb"></span>
+          </button>
+        </div>
+
+        <!-- UI backgrounds par carte (uniquement en mode cartes) -->
+        <label id="cardBgLabel" class="hidden">Card
+          <select id="cardBgSeason"></select>
+        </label>
+        <button id="cardBgPickBtn" type="button" class="hidden">Card BG</button>
+        <button id="cardBgClearOneBtn" type="button" class="ghost hidden">Clear (this)</button>
+        <button id="cardBgClearAllBtn" type="button" class="ghost hidden">Clear all</button>
+        <input id="cardBgFile" type="file" accept="image/*" class="hidden" />
+
+        <button id="exportBtn" type="button">Export PNG</button>
+      </div>
+
+      <div class="right">
+        <label>Background
+          <input id="bgFile" type="file" accept="image/*" />
+        </label>
+        <button id="clearBgBtn" class="ghost" type="button">Clear BG</button>
+
+        <label>Logo
+          <input id="logoFile" type="file" accept="image/*" />
+        </label>
+        <button id="clearLogoBtn" class="ghost" type="button">Clear logo</button>
+
+        <!-- Min/Max retirés de l'UI (gardés dans le code) -->
+      </div>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <p class="hint">
+      1ère ligne = saisons ; lignes suivantes = notes des épisodes ; vide/NA = case vide ; X = "?".
+      En mode cartes, tu choisis la saison dans le menu puis tu uploades 1 image pour CE bloc.
+    </p>
+
+    <textarea id="csv">S1,S2,S3,S4,S5
+9.3,8.7,8.4,7.1,8.6
+8.3,8.4,8.0,7.1,8.3
+8.5,8.5,7.9,7.3,8.0
+8.9,8.7,8.1,7.3,8.0
+8.4,9.1,8.2,7.3,8.1
+9.2,9.2,8.6,7.4,8.1
+8.9,8.8,8.3,7.2,7.6
+8.5,9.4,8.9,7.8,8.5
+9.3,9.4,8.7,7.7,8.6
+9.3,8.4,8.5,7.7,8.3
+NA,NA,NA,7.2,NA</textarea>
+  </div>
+
+  <canvas id="c" width="900" height="1200"></canvas>
+</div>
+
+<script>
+/* =========================
+   CONFIG cachée (Min/Max)
+========================= */
+const MIN_SCORE = 1.0;
+const MAX_SCORE = 10.0;
+
+/* =========================
+   1) RANGES (légende = uniquement les 7)
+========================= */
+const ranges = [
+  { label: "Cinema",  min: 9.6, max: 10.0, color: "#1DA1F2", text: "rgba(255,255,255,.95)" },
+  { label: "Amazing", min: 9.0, max: 9.5,  color: "#186A3B", text: "rgba(255,255,255,.95)" },
+  { label: "Great",   min: 8.0, max: 8.9,  color: "#28B463", text: "rgba(20,20,20,.92)" },
+  { label: "Average", min: 7.0, max: 7.9,  color: "#F4D03F", text: "rgba(25,25,25,.92)" },
+  { label: "Weak",    min: 6.0, max: 6.9,  color: "#F39C12", text: "rgba(25,25,25,.92)" },
+  { label: "Bad",     min: 3.0, max: 5.9,  color: "#E74C3C", text: "rgba(255,255,255,.95)" },
+  { label: "Trash",   min: 1.0, max: 2.9,  color: "#633974", text: "rgba(255,255,255,.95)" },
+];
+const missing = { label: "Missing", color: "rgba(255,255,255,.10)", text: "rgba(255,255,255,0)" };
+const unknown = { label: "Unknown", color: "rgba(255,255,255,.18)", text: "rgba(255,255,255,.65)" };
+
+/* =========================
+   2) LAYOUT - MODE GRILLE
+========================= */
+const L = {
+  pad: 38,
+  leftLabelW: 64,
+  topLabelH: 46,
+
+  cellW: 78,
+  cellH: 46,
+  gapX: 10,
+  gapY: 10,
+
+  r: 5,
+  shadowBlur: 0,
+  shadowY: 0,
+
+  fontAxis: "700 17px system-ui, -apple-system, Segoe UI, Roboto, Arial",
+  fontCell: "650 30px system-ui, -apple-system, Segoe UI, Roboto, Arial",
+  fontAvg: "500 29px system-ui, -apple-system, Segoe UI, Roboto, Arial",
+  fontAvgLabel: "600 18px system-ui, -apple-system, Segoe UI, Roboto, Arial",
+};
+
+const FLEX = {
+  fewEp: 7,
+  topMin: 34,
+  topMax: 70,
+};
+
+const AVG = {
+  gapFromGrid: 56,
+  blockH: 44,
+  barOffset: 18,
+  barH: 7
+};
+
+const FOOTER = {
+  gapFromAvg: 12,
+  minH: 78
+};
+
+const LOGO = {
+  padX: 56,
+  maxW: 260,
+  maxH: 96,
+  opacity: 0.95,
+  yBias: 0,
+  targetArea: 16000,
+  maxUpscale: 1.6
+};
+
+/* =========================
+   3) LAYOUT - MODE CARTES
+========================= */
+const CARD = {
+  pad: 28,
+  colsMinW: 900,
+  cardH: 140,
+  gap: 18,
+  radius: 16,
+  innerPadX: 28,
+  badgeSize: 56,
+  badgeRadius: 12,
+  titleFont: "800 30px system-ui, -apple-system, Segoe UI, Roboto, Arial",
+  badgeFont: "800 24px system-ui, -apple-system, Segoe UI, Roboto, Arial",
+  bgOpacity: 0.90,
+};
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d", { alpha: true });
+
+const csvEl = document.getElementById("csv");
+const legendEl = document.getElementById("legend");
+
+const modeBtn = document.getElementById("modeBtn");
+let seasonalMode = false;
+
+const exportBtn = document.getElementById("exportBtn");
+
+const bgFile = document.getElementById("bgFile");
+const clearBgBtn = document.getElementById("clearBgBtn");
+
+const logoFile = document.getElementById("logoFile");
+const clearLogoBtn = document.getElementById("clearLogoBtn");
+
+// UI per-card BG
+const cardBgLabel = document.getElementById("cardBgLabel");
+const cardBgSeason = document.getElementById("cardBgSeason");
+const cardBgPickBtn = document.getElementById("cardBgPickBtn");
+const cardBgClearOneBtn = document.getElementById("cardBgClearOneBtn");
+const cardBgClearAllBtn = document.getElementById("cardBgClearAllBtn");
+const cardBgFile = document.getElementById("cardBgFile");
+
+let bgImage = null;
+let logoImage = null;
+
+// backgrounds par carte (index = saison)
+let cardBgImages = []; // Array<Image|null>
+
+function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+
+/* CSV : ""/NA => null ; X => "X" */
+function parseCSV(text){
+  const lines = text.trim().split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if (!lines.length) return { seasons:[], rows:[] };
+
+  const seasons = lines[0].split(",").map((s,i)=> (s.trim() || `S${i+1}`));
+  const rows = [];
+
+  for (let i=1;i<lines.length;i++){
+    const parts = lines[i].split(",").map(s=>s.trim());
+    rows.push(parts.map(p=>{
+      if (!p || p.toUpperCase() === "NA") return null;
+      if (p.toUpperCase() === "X") return "X";
+      const v = Number(p.replace(",", "."));
+      return Number.isFinite(v) ? v : null;
+    }));
+  }
+  return { seasons, rows };
+}
+
+function avg(arr){
+  const vals = arr.filter(v => typeof v === "number" && !Number.isNaN(v));
+  if (!vals.length) return null;
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+
+function pickBucket(score, minScore, maxScore){
+  if (typeof score !== "number" || Number.isNaN(score)) return missing;
+  const s = clamp(score, minScore, maxScore);
+  for (const r of ranges){
+    if (s >= r.min && s <= r.max) return r;
+  }
+  return missing;
+}
+
+function roundRectPath(x,y,w,h,r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr, y);
+  ctx.arcTo(x+w, y, x+w, y+h, rr);
+  ctx.arcTo(x+w, y+h, x, y+h, rr);
+  ctx.arcTo(x, y+h, x, y, rr);
+  ctx.arcTo(x, y, x+w, y, rr);
+  ctx.closePath();
+}
+
+function drawBackground(W,H){
+  ctx.save();
+  // évite les fuites d'ombre iOS
+  ctx.shadowColor = "rgba(0,0,0,0)";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  ctx.fillStyle = "#04060c";
+  ctx.fillRect(0,0,W,H);
+
+  if (bgImage){
+    const s = Math.max(W/bgImage.width, H/bgImage.height);
+    const iw = bgImage.width*s, ih = bgImage.height*s;
+    const ix = (W-iw)/2, iy = (H-ih)/2;
+    ctx.globalAlpha = 0.92;
+    ctx.drawImage(bgImage, ix, iy, iw, ih);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "rgba(0,0,0,.55)";
+    ctx.fillRect(0,0,W,H);
+  } else {
+    ctx.fillStyle = "rgba(255,255,255,.03)";
+    for (let i=0;i<60;i++){
+      const x=Math.random()*W, y=Math.random()*H, r=2+Math.random()*8;
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle = "rgba(0,0,0,.35)";
+    ctx.fillRect(0,0,W,H);
+  }
+
+  ctx.restore();
+}
+
+/* =========================
+   LOGO (même rendu que mode normal)
+========================= */
+function getLogoScaledSize(){
+  if (!logoImage) return { w: 0, h: 0, s: 1 };
+
+  const iw = logoImage.width;
+  const ih = logoImage.height;
+
+  let s = Math.sqrt(LOGO.targetArea / (iw * ih));
+  s = Math.min(s, LOGO.maxW / iw, LOGO.maxH / ih);
+  s = Math.min(s, LOGO.maxUpscale);
+
+  const w = Math.round(iw * s);
+  const h = Math.round(ih * s);
+  return { w, h, s };
+}
+
+function drawLogoInFooter(W, footerTop, footerH){
+  if (!logoImage) return;
+  const { w, h } = getLogoScaledSize();
+
+  const x = W - LOGO.padX - w;
+  let y = Math.round(footerTop + (footerH - h) / 2 + LOGO.yBias);
+
+  const padY = 8;
+  const yMin = footerTop + padY;
+  const yMax = footerTop + footerH - h - padY;
+  y = clamp(y, yMin, yMax);
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0)";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  ctx.globalAlpha = LOGO.opacity;
+  ctx.drawImage(logoImage, x, y, w, h);
+  ctx.restore();
+}
+
+/* =========================
+   LÉGENDE : uniquement les 7 catégories
+========================= */
+function buildLegend(){
+  legendEl.innerHTML = "";
+  for (const r of ranges){
+    const item = document.createElement("div");
+    item.className = "leg-item";
+    item.innerHTML = `<span class="swatch" style="background:${r.color}"></span><span>${r.label}</span>`;
+    legendEl.appendChild(item);
+  }
+}
+
+function formatScore(value){
+  if (value === 10) return "10";
+  return value.toFixed(1);
+}
+
+/* =========================
+   MODE CARTES
+========================= */
+function computeSeasonAverages(seasons, rows){
+  const S = seasons.length;
+  const out = [];
+
+  for (let s=0; s<S; s++){
+    const colRaw = rows.map(r => (r && s < r.length) ? r[s] : null);
+
+    const nums = colRaw.filter(v => typeof v === "number" && !Number.isNaN(v));
+    const hasUnknown = colRaw.some(v => v === "X");
+    const a = nums.length ? (nums.reduce((p,c)=>p+c,0) / nums.length) : null;
+
+    out.push({
+      title: seasons[s] || `S${s+1}`,
+      avg: a,
+      idx: s,
+      hasUnknown
+    });
+  }
+  return out;
+}
+
+function drawCoverImage(img, x, y, w, h, opacity){
+  if (!img) return;
+  const s = Math.max(w / img.width, h / img.height);
+  const iw = img.width * s;
+  const ih = img.height * s;
+  const ix = x + (w - iw) / 2;
+  const iy = y + (h - ih) / 2;
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.drawImage(img, ix, iy, iw, ih);
+  ctx.restore();
+}
+
+function drawSeasonCard(x, y, w, h, item, minScore, maxScore){
+  // base
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.55)";
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 10;
+
+  roundRectPath(x, y, w, h, CARD.radius);
+  ctx.fillStyle = "rgba(255,255,255,.06)";
+  ctx.fill();
+  ctx.restore();
+
+  // clip + BG
+  ctx.save();
+  roundRectPath(x, y, w, h, CARD.radius);
+  ctx.clip();
+
+  const bg = cardBgImages[item.idx] || null;
+  if (bg) drawCoverImage(bg, x, y, w, h, CARD.bgOpacity);
+
+  ctx.fillStyle = "rgba(0,0,0,.25)";
+  ctx.fillRect(x, y, w, h);
+
+  const g = ctx.createLinearGradient(x, y, x+w, y);
+  g.addColorStop(0, "rgba(0,0,0,.70)");
+  g.addColorStop(0.55, "rgba(0,0,0,.35)");
+  g.addColorStop(1, "rgba(0,0,0,.55)");
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, w, h);
+
+  ctx.restore();
+
+  // titre
+  const tx = x + CARD.innerPadX;
+  const ty = y + h/2;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0)";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  ctx.font = CARD.titleFont;
+  ctx.fillStyle = "rgba(255,255,255,.95)";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(item.title, tx, ty);
+
+  // badge
+  const bs = CARD.badgeSize;
+  const bx = x + w - CARD.innerPadX - bs;
+  const by = y + (h - bs)/2;
+
+  const hasAvg = (typeof item.avg === "number" && !Number.isNaN(item.avg));
+
+  // Rien par défaut, SAUF si la saison est "unknown-only" (au moins un X, zéro note)
+  if (!hasAvg && !item.hasUnknown){
+    ctx.restore();
+    return;
+  }
+
+  roundRectPath(bx, by, bs, bs, CARD.badgeRadius);
+
+  if (!hasAvg && item.hasUnknown){
+    ctx.fillStyle = unknown.color;
+    ctx.fill();
+
+    ctx.font = CARD.badgeFont;
+    ctx.fillStyle = unknown.text;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("?", bx + bs/2, by + bs/2 + 1);
+
+    ctx.restore();
+    return;
+  }
+
+  const shown = Math.round(item.avg * 10) / 10;
+  const bucket = pickBucket(shown, minScore, maxScore);
+
+  ctx.fillStyle = bucket.color;
+  ctx.fill();
+
+  ctx.font = CARD.badgeFont;
+  ctx.fillStyle = bucket.text;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(formatScore(shown), bx + bs/2, by + bs/2 + 1);
+
+  ctx.restore();
+}
+
+/* Card logo inline : AUCUN placeholder, AUCUN fond, AUCUNE ombre (logo pur) */
+function drawLogoCardInline(x, y, w, h){
+  if (!logoImage) return;
+
+  const { w: lw, h: lh } = getLogoScaledSize();
+
+  const padX = Math.min(LOGO.padX, Math.floor(w * 0.22));
+  const padY = 8;
+
+  let dx = Math.round(x + w - padX - lw);
+  let dy = Math.round(y + (h - lh) / 2 + LOGO.yBias);
+
+  dx = clamp(dx, x + padY, x + w - lw - padY);
+  dy = clamp(dy, y + padY, y + h - lh - padY);
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0)";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  ctx.globalAlpha = LOGO.opacity;
+  ctx.drawImage(logoImage, dx, dy, lw, lh);
+  ctx.restore();
+}
+
+function renderSeasonalMode(seasons, rows, minScore, maxScore){
+  canvas.width = 900;
+  const W = canvas.width;
+
+  const cols = (W >= CARD.colsMinW) ? 2 : 1;
+  const pad = CARD.pad;
+  const gap = CARD.gap;
+
+  const cardW = (cols === 2)
+    ? Math.floor((W - pad*2 - gap) / 2)
+    : (W - pad*2);
+
+  const cardH = CARD.cardH;
+
+  // 1) items = saisons
+  let items = computeSeasonAverages(seasons, rows);
+
+  // 2) Si 2 colonnes + nb saisons impair + logo chargé => on AJOUTE le logo en dernier
+  //    (case paire vide du dernier rang)
+  const useInlineLogoFiller = (cols === 2) && (items.length % 2 === 1) && !!logoImage;
+  if (useInlineLogoFiller){
+    items = [...items, { type: "logo" }];
+  }
+
+  // 3) Footer logo UNIQUEMENT si pas de filler inline (donc visible quand nb saisons est pair)
+  const useFooterLogo = !!logoImage && !useInlineLogoFiller;
+
+  const rowsCount = Math.ceil(items.length / cols);
+  const cardsBlockH = (rowsCount * cardH) + (Math.max(0, rowsCount - 1) * gap);
+
+  const { h: logoH } = getLogoScaledSize();
+  const footerH = useFooterLogo ? Math.max(FOOTER.minH, logoH + 24) : 0;
+  const footerGap = useFooterLogo ? 16 : 0;
+
+  const Hneeded = pad + cardsBlockH + footerGap + footerH + pad;
+  canvas.height = Math.max(Math.ceil(Hneeded), 420);
+
+  const H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  drawBackground(W,H);
+
+  // 4) Dessin des cards
+  for (let i=0; i<items.length; i++){
+    const r = Math.floor(i / cols);
+    const c = i % cols;
+    const x = pad + c * (cardW + gap);
+    const y = pad + r * (cardH + gap);
+
+    const item = items[i];
+
+    if (item && item.type === "logo"){
+      drawLogoCardInline(x, y, cardW, cardH);
+      continue;
+    }
+
+    drawSeasonCard(x, y, cardW, cardH, item, minScore, maxScore);
+  }
+
+  // 5) Logo footer (quand nb saisons pair)
+  if (useFooterLogo){
+    const footerTop = pad + cardsBlockH + footerGap;
+    drawLogoInFooter(W, footerTop, footerH);
+  }
+}
+
+/* =========================
+   MODE GRILLE
+========================= */
+function renderGridMode(seasons, rows, minScore, maxScore){
+  const S = seasons.length;
+  const E = rows.length;
+
+  const gridWidthNeeded =
+    L.leftLabelW +
+    (S * L.cellW) +
+    (Math.max(0, S - 1) * L.gapX) +
+    L.pad * 2;
+
+  canvas.width = Math.max(900, gridWidthNeeded);
+
+  const gridH = (E * L.cellH) + (Math.max(0, E - 1) * L.gapY);
+  const t = clamp((E - FLEX.fewEp) / 10, 0, 1);
+  const topExtra = Math.round(FLEX.topMin + (FLEX.topMax - FLEX.topMin) * t);
+
+  const gridTop = L.pad + topExtra;
+  const gridX0 = L.pad + L.leftLabelW;
+  const gridY0 = gridTop + L.topLabelH;
+
+  const avgY = gridY0 + gridH + AVG.gapFromGrid;
+
+  const { h: logoH } = getLogoScaledSize();
+  const footerH = logoImage ? Math.max(FOOTER.minH, logoH + 24) : FOOTER.minH;
+  const footerTop = avgY + AVG.blockH + FOOTER.gapFromAvg;
+
+  const Hneeded = footerTop + footerH + L.pad;
+  canvas.height = Math.max(Math.ceil(Hneeded), 420);
+
+  const W = canvas.width;
+  const H = canvas.height;
+
+  ctx.clearRect(0,0,W,H);
+  drawBackground(W,H);
+
+  // saisons
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0)";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  ctx.font = L.fontAxis;
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  for (let s = 0; s < S; s++){
+    const x = gridX0 + s * (L.cellW + L.gapX) + L.cellW / 2;
+    const y = gridTop + L.topLabelH / 2;
+    ctx.fillText(seasons[s] || ("S" + (s+1)), x, y);
+  }
+
+  // épisodes
+  ctx.textAlign = "left";
+  for (let e = 0; e < E; e++){
+    const x = L.pad;
+    const y = gridY0 + e * (L.cellH + L.gapY) + L.cellH / 2;
+    ctx.fillText("E" + (e+1), x, y);
+  }
+
+  ctx.restore();
+
+  // cases
+  for (let e = 0; e < E; e++){
+    for (let s = 0; s < S; s++){
+      const raw = (rows[e] && s < rows[e].length) ? rows[e][s] : null;
+      if (raw == null) continue;
+
+      const isUnknown = (raw === "X");
+      const bucket = isUnknown ? unknown : pickBucket(raw, minScore, maxScore);
+
+      const x = gridX0 + s * (L.cellW + L.gapX);
+      const y = gridY0 + e * (L.cellH + L.gapY);
+
+      ctx.fillStyle = bucket.color;
+      roundRectPath(x, y, L.cellW, L.cellH, L.r);
+      ctx.fill();
+
+      ctx.font = L.fontCell;
+      ctx.fillStyle = bucket.text;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const txt = isUnknown ? "?" : formatScore(Number(raw));
+      ctx.fillText(txt, x + L.cellW/2, y + L.cellH/2 + 2);
+    }
+  }
+
+  // AVG label dans ton original : tu peux le laisser ou le retirer.
+  // (je le laisse identique à ton code fourni)
+  ctx.font = L.fontAvgLabel;
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText("AVG.", L.pad, avgY);
+
+  for (let s = 0; s < S; s++){
+    const col = rows
+      .map(r => (r && s < r.length) ? r[s] : null)
+      .filter(v => v !== "X");
+
+    const a = avg(col);
+    const x = gridX0 + s * (L.cellW + L.gapX);
+
+    ctx.font = L.fontAvg;
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(a == null ? "" : formatScore(a), x + L.cellW/2, avgY - 6);
+
+    if (a != null){
+      const aShown = Math.round(a * 10) / 10;
+      const b = pickBucket(aShown, minScore, maxScore);
+
+      const barY = avgY + AVG.barOffset;
+      ctx.fillStyle = b.color;
+      roundRectPath(x, barY, L.cellW, AVG.barH, 999);
+      ctx.fill();
+    }
+  }
+
+  drawLogoInFooter(W, footerTop, footerH);
+}
+
+/* =========================
+   UI helpers
+========================= */
+function syncCardBgUI(){
+  const on = seasonalMode;
+  cardBgLabel.classList.toggle("hidden", !on);
+  cardBgPickBtn.classList.toggle("hidden", !on);
+  cardBgClearOneBtn.classList.toggle("hidden", !on);
+  cardBgClearAllBtn.classList.toggle("hidden", !on);
+}
+
+function syncSeasonDropdown(seasons){
+  const current = cardBgSeason.value;
+  cardBgSeason.innerHTML = "";
+  for (let i=0; i<seasons.length; i++){
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = seasons[i] || `S${i+1}`;
+    cardBgSeason.appendChild(opt);
+  }
+  if (current && Number(current) < seasons.length) cardBgSeason.value = current;
+}
+
+function render(){
+  buildLegend();
+
+  const minScore = MIN_SCORE;
+  const maxScore = MAX_SCORE;
+
+  const { seasons, rows } = parseCSV(csvEl.value);
+
+  // aligner array BG sur nb saisons
+  if (cardBgImages.length !== seasons.length){
+    const next = new Array(seasons.length).fill(null);
+    for (let i=0;i<Math.min(cardBgImages.length, next.length);i++) next[i] = cardBgImages[i];
+    cardBgImages = next;
+  }
+
+  syncSeasonDropdown(seasons);
+
+  if (seasonalMode){
+    renderSeasonalMode(seasons, rows, minScore, maxScore);
+  } else {
+    renderGridMode(seasons, rows, minScore, maxScore);
+  }
+}
+
+/* Export iOS: le "download" peut ne pas marcher => fallback onglet */
+function isIOS(){
+  const ua = navigator.userAgent || "";
+  const iOS = /iPad|iPhone|iPod/.test(ua);
+  const iPadOS = (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return iOS || iPadOS;
+}
+
+function exportPNG(){
+  const dataUrl = canvas.toDataURL("image/png");
+
+  if (isIOS()){
+    // iOS Safari: ouvrir dans un onglet, puis "Partager" -> "Enregistrer l'image"
+    const w = window.open();
+    if (!w) return;
+    w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1"><title>Export</title>`);
+    w.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;display:block"/>`);
+    w.document.close();
+    return;
+  }
+
+  const a = document.createElement("a");
+  a.download = seasonalMode ? "series_cards.png" : "series_grid.png";
+  a.href = dataUrl;
+  a.click();
+}
+
+function fileToImage(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
+/* =========================
+   EVENTS
+========================= */
+csvEl.addEventListener("input", render);
+
+modeBtn.addEventListener("click", () => {
+  seasonalMode = !seasonalMode;
+  modeBtn.setAttribute("aria-checked", seasonalMode ? "true" : "false");
+  syncCardBgUI();
+  render();
+});
+
+cardBgPickBtn.addEventListener("click", () => {
+  cardBgFile.click();
+});
+
+cardBgFile.addEventListener("change", async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+
+  const idx = Number(cardBgSeason.value);
+  if (!Number.isFinite(idx)) return;
+
+  try{
+    const img = await fileToImage(f);
+    cardBgImages[idx] = img;
+  }catch(err){
+    console.error("Card BG load failed:", err);
+  }
+  cardBgFile.value = "";
+  render();
+});
+
+cardBgClearOneBtn.addEventListener("click", () => {
+  const idx = Number(cardBgSeason.value);
+  if (Number.isFinite(idx) && idx >= 0 && idx < cardBgImages.length){
+    cardBgImages[idx] = null;
+    render();
+  }
+});
+
+cardBgClearAllBtn.addEventListener("click", () => {
+  cardBgImages = cardBgImages.map(()=>null);
+  render();
+});
+
+exportBtn.addEventListener("click", exportPNG);
+
+bgFile.addEventListener("change", async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  bgImage = await fileToImage(f);
+  render();
+});
+clearBgBtn.addEventListener("click", () => {
+  bgImage = null;
+  bgFile.value = "";
+  render();
+});
+
+logoFile.addEventListener("change", async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  try{
+    logoImage = await fileToImage(f);
+  }catch(err){
+    console.error("Logo load failed:", err);
+    logoImage = null;
+  }
+  render();
+});
+clearLogoBtn.addEventListener("click", () => {
+  logoImage = null;
+  logoFile.value = "";
+  render();
+});
+
+/* init */
+buildLegend();
+syncCardBgUI();
+render();
+</script>
+</body>
+</html>
