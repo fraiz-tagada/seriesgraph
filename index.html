@@ -76,18 +76,34 @@
     .switch span{color:var(--muted);font-weight:700;font-size:13px}
 
     .toggle{
-      width:44px;height:26px;border-radius:999px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.16);
-      position:relative; padding:0; cursor:pointer;
-    }
+  width:56px;              /* ← plus long */
+  height:28px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background: rgba(255,255,255,.14);
+  position:relative;
+  padding:0;
+  cursor:pointer;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+    .toggle[aria-checked="true"]{
+  background: #0A84FF;     /* bleu iOS */
+  border-color: #0A84FF;
+}
+    
     .thumb{
-      width:20px;height:20px;border-radius:999px;
-      background: rgba(255,255,255,.86);
-      position:absolute;top:50%;left:3px;transform:translateY(-50%);
-      transition:left 160ms ease;
-    }
-    .toggle[aria-checked="true"] .thumb{left:21px;}
+      width:22px;
+      height:22px;
+      border-radius:999px;
+      background:#ffffff;
+      position:absolute;
+      top:50%;
+      left:3px;
+      transform:translateY(-50%);
+      transition:left 180ms cubic-bezier(.4,0,.2,1);
+}
+    .toggle[aria-checked="true"] .thumb{left:31px;}
 
     .legend{
       display:flex;
