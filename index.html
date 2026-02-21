@@ -914,15 +914,18 @@ function renderGridMode(seasons, rows, minScore, maxScore){
     ctx.textBaseline = "middle";
     ctx.fillText(a == null ? "" : formatScore(a), x + L.cellW/2, avgY - 6);
 
-    if (a != null){
-      const aShown = Math.round(a * 10) / 10;
-      const b = pickBucket(aShown, minScore, maxScore);
+if (a != null) {
+  const shown = Number(a.toFixed(1));     // <-- single source of truth
+  ctx.fillText(formatScore(shown), x + L.cellW/2, avgY - 6);
 
-      const barY = avgY + AVG.barOffset;
-      ctx.fillStyle = b.color;
-      roundRectPath(x, barY, L.cellW, AVG.barH, 999);
-      ctx.fill();
-    }
+  const b = pickBucket(shown, minScore, maxScore);
+  const barY = avgY + AVG.barOffset;
+  ctx.fillStyle = b.color;
+  roundRectPath(x, barY, L.cellW, AVG.barH, 999);
+  ctx.fill();
+} else {
+  ctx.fillText("", x + L.cellW/2, avgY - 6);
+}
   }
 
   drawLogoInFooter(W, footerTop, footerH);
