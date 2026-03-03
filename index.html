@@ -534,7 +534,7 @@ function drawBackground(W,H){
     ctx.fillRect(0,0,W,H);
   } else {
     // RNG déterministe => fond identique iOS/macOS à dimensions égales
-    const rand = mulberry32(123456);
+    const rand = mulberry32(123456 ^ (W*73856093) ^ (H*19349663));
 
     ctx.fillStyle = "rgba(255,255,255,.03)";
     for (let i=0;i<60;i++){
