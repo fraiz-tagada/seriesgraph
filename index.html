@@ -174,7 +174,6 @@
 
     .hidden{display:none !important;}
 
-    /* ===== iPhone/Safari iOS: UI bottom sheet ===== */
     @media (max-width: 760px){
       .ui{
         position: fixed;
@@ -346,7 +345,6 @@ const L = {
   shadowBlur: 0,
   shadowY: 0,
 
-  // Police système (SF via -apple-system sur Apple)
   fontAxis: "700 17px -apple-system, system-ui, Segoe UI, Roboto, Arial",
   fontCell: "700 30px -apple-system, system-ui, Segoe UI, Roboto, Arial",
   fontAvg: "600 29px -apple-system, system-ui, Segoe UI, Roboto, Arial",
@@ -401,43 +399,7 @@ const CARD = {
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d", { alpha: true });
 
-// Preview = DPR (cap 2), Export = plus net (2 ou 3)
 const EXPORT_SCALE = 3;
-
-function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
-const px = (n) => Math.round(n);
-
-/* RNG déterministe pour fond identique partout */
-function mulberry32(a){
-  return function(){
-    let t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/* État “propre” du contexte, pour éviter divergences iOS/macOS */
-function resetCtxState(){
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = "source-over";
-  ctx.shadowColor = "rgba(0,0,0,0)";
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-}
-
-/* Canvas scalable (preview DPR / export HD) */
-function setCanvasSize(cssW, cssH, scale = 1){
-  canvas.width  = Math.round(cssW * scale);
-  canvas.height = Math.round(cssH * scale);
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  resetCtxState();
-  // ré-applique le transform après reset
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
-}
 
 const csvEl = document.getElementById("csv");
 const legendEl = document.getElementById("legend");
@@ -466,6 +428,27 @@ let logoImage = null;
 
 // backgrounds par carte (index = saison)
 let cardBgImages = []; // Array<Image|null>
+
+function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+const px = (n) => Math.round(n);
+
+/* RNG déterministe */
+function mulberry32(a){
+  return function(){
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* Centrage texte stable iOS/macOS */
+function drawTextCentered(text, cx, cy){
+  const m = ctx.measureText(text);
+  const y = cy + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(text, px(cx), px(y));
+}
 
 /* CSV : ""/NA => null ; X => "X" */
 function parseCSV(text){
@@ -533,17 +516,12 @@ function drawBackground(W,H){
     ctx.fillStyle = "rgba(0,0,0,.55)";
     ctx.fillRect(0,0,W,H);
   } else {
-    // RNG déterministe => fond identique iOS/macOS à dimensions égales
+    // deterministic dots (same for same W/H)
     const rand = mulberry32(123456 ^ (W*73856093) ^ (H*19349663));
-
     ctx.fillStyle = "rgba(255,255,255,.03)";
     for (let i=0;i<60;i++){
-      const x = rand()*W;
-      const y = rand()*H;
-      const r = 2 + rand()*8;
-      ctx.beginPath();
-      ctx.arc(x,y,r,0,Math.PI*2);
-      ctx.fill();
+      const x=rand()*W, y=rand()*H, r=2+rand()*8;
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
     }
     ctx.fillStyle = "rgba(0,0,0,.35)";
     ctx.fillRect(0,0,W,H);
@@ -650,20 +628,18 @@ function drawCoverImage(img, x, y, w, h, opacity){
 }
 
 function drawSeasonCard(x, y, w, h, item, minScore, maxScore){
-  // base
   ctx.save();
   ctx.shadowColor = "rgba(0,0,0,.55)";
   ctx.shadowBlur = 18;
   ctx.shadowOffsetY = 10;
 
-  roundRectPath(px(x), px(y), px(w), px(h), CARD.radius);
+  roundRectPath(x, y, w, h, CARD.radius);
   ctx.fillStyle = "rgba(255,255,255,.06)";
   ctx.fill();
   ctx.restore();
 
-  // clip + BG
   ctx.save();
-  roundRectPath(px(x), px(y), px(w), px(h), CARD.radius);
+  roundRectPath(x, y, w, h, CARD.radius);
   ctx.clip();
 
   const bg = cardBgImages[item.idx] || null;
@@ -681,7 +657,6 @@ function drawSeasonCard(x, y, w, h, item, minScore, maxScore){
 
   ctx.restore();
 
-  // titre
   const tx = x + CARD.innerPadX;
   const ty = y + h/2;
 
@@ -694,10 +669,9 @@ function drawSeasonCard(x, y, w, h, item, minScore, maxScore){
   ctx.font = CARD.titleFont;
   ctx.fillStyle = "rgba(255,255,255,.95)";
   ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillText(item.title, px(tx), px(ty));
+  // titre = centré verticalement via helper
+  drawTextCentered(item.title, tx, ty);
 
-  // badge
   const bs = CARD.badgeSize;
   const bx = x + w - CARD.innerPadX - bs;
   const by = y + (h - bs)/2;
@@ -709,7 +683,7 @@ function drawSeasonCard(x, y, w, h, item, minScore, maxScore){
     return;
   }
 
-  roundRectPath(px(bx), px(by), px(bs), px(bs), CARD.badgeRadius);
+  roundRectPath(bx, by, bs, bs, CARD.badgeRadius);
 
   if (!hasAvg && item.hasUnknown){
     ctx.fillStyle = unknown.color;
@@ -718,8 +692,7 @@ function drawSeasonCard(x, y, w, h, item, minScore, maxScore){
     ctx.font = CARD.badgeFont;
     ctx.fillStyle = unknown.text;
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("?", px(bx + bs/2), px(by + bs/2 + 1));
+    drawTextCentered("?", bx + bs/2, by + bs/2 + 1);
 
     ctx.restore();
     return;
@@ -734,13 +707,12 @@ function drawSeasonCard(x, y, w, h, item, minScore, maxScore){
   ctx.font = CARD.badgeFont;
   ctx.fillStyle = bucket.text;
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(formatScore(shown), px(bx + bs/2), px(by + bs/2 + 1));
+  drawTextCentered(formatScore(shown), bx + bs/2, by + bs/2 + 1);
 
   ctx.restore();
 }
 
-/* Card logo inline */
+/* Card logo inline : logo pur */
 function drawLogoCardInline(x, y, w, h){
   if (!logoImage) return;
 
@@ -766,9 +738,9 @@ function drawLogoCardInline(x, y, w, h){
   ctx.restore();
 }
 
-function renderSeasonalMode(seasons, rows, minScore, maxScore, scale = 1){
-  const cssW = 900;
-  const W = cssW;
+function renderSeasonalMode(seasons, rows, minScore, maxScore){
+  canvas.width = 900;
+  const W = canvas.width;
 
   const cols = (W >= CARD.colsMinW) ? 2 : 1;
   const pad = CARD.pad;
@@ -797,11 +769,9 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore, scale = 1){
   const footerGap = useFooterLogo ? 16 : 0;
 
   const Hneeded = pad + cardsBlockH + footerGap + footerH + pad;
-  const cssH = Math.max(Math.ceil(Hneeded), 420);
+  canvas.height = Math.max(Math.ceil(Hneeded), 420);
 
-  setCanvasSize(cssW, cssH, scale);
-
-  const H = cssH;
+  const H = canvas.height;
   ctx.clearRect(0,0,W,H);
   drawBackground(W,H);
 
@@ -830,7 +800,7 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore, scale = 1){
 /* =========================
    MODE GRILLE
 ========================= */
-function renderGridMode(seasons, rows, minScore, maxScore, scale = 1){
+function renderGridMode(seasons, rows, minScore, maxScore){
   const S = seasons.length;
   const E = rows.length;
 
@@ -840,7 +810,7 @@ function renderGridMode(seasons, rows, minScore, maxScore, scale = 1){
     (Math.max(0, S - 1) * L.gapX) +
     L.pad * 2;
 
-  const cssW = Math.max(900, gridWidthNeeded);
+  canvas.width = Math.max(900, gridWidthNeeded);
 
   const gridH = (E * L.cellH) + (Math.max(0, E - 1) * L.gapY);
   const t = clamp((E - FLEX.fewEp) / 10, 0, 1);
@@ -857,12 +827,10 @@ function renderGridMode(seasons, rows, minScore, maxScore, scale = 1){
   const footerTop = avgY + AVG.blockH + FOOTER.gapFromAvg;
 
   const Hneeded = footerTop + footerH + L.pad;
-  const cssH = Math.max(Math.ceil(Hneeded), 420);
+  canvas.height = Math.max(Math.ceil(Hneeded), 420);
 
-  setCanvasSize(cssW, cssH, scale);
-
-  const W = cssW;
-  const H = cssH;
+  const W = canvas.width;
+  const H = canvas.height;
 
   ctx.clearRect(0,0,W,H);
   drawBackground(W,H);
@@ -877,12 +845,11 @@ function renderGridMode(seasons, rows, minScore, maxScore, scale = 1){
   ctx.font = L.fontAxis;
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
 
   for (let s = 0; s < S; s++){
     const x = gridX0 + s * (L.cellW + L.gapX) + L.cellW / 2;
     const y = gridTop + L.topLabelH / 2;
-    ctx.fillText(seasons[s] || ("S" + (s+1)), px(x), px(y));
+    drawTextCentered(seasons[s] || ("S" + (s+1)), x, y);
   }
 
   // épisodes
@@ -890,7 +857,7 @@ function renderGridMode(seasons, rows, minScore, maxScore, scale = 1){
   for (let e = 0; e < E; e++){
     const x = L.pad;
     const y = gridY0 + e * (L.cellH + L.gapY) + L.cellH / 2;
-    ctx.fillText("E" + (e+1), px(x), px(y));
+    drawTextCentered("E" + (e+1), x, y);
   }
 
   ctx.restore();
@@ -908,16 +875,15 @@ function renderGridMode(seasons, rows, minScore, maxScore, scale = 1){
       const y = gridY0 + e * (L.cellH + L.gapY);
 
       ctx.fillStyle = bucket.color;
-      roundRectPath(px(x), px(y), px(L.cellW), px(L.cellH), L.r);
+      roundRectPath(x, y, L.cellW, L.cellH, L.r);
       ctx.fill();
 
       ctx.font = L.fontCell;
       ctx.fillStyle = bucket.text;
       ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
 
       const txt = isUnknown ? "?" : formatScore(Number(raw));
-      ctx.fillText(txt, px(x + L.cellW/2), px(y + L.cellH/2 + 2));
+      drawTextCentered(txt, x + L.cellW/2, y + L.cellH/2 + 2);
     }
   }
 
@@ -925,8 +891,7 @@ function renderGridMode(seasons, rows, minScore, maxScore, scale = 1){
   ctx.font = L.fontAvgLabel;
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillText("AVG.", px(L.pad), px(avgY));
+  drawTextCentered("AVG.", L.pad, avgY);
 
   for (let s = 0; s < S; s++){
     const col = rows
@@ -938,17 +903,15 @@ function renderGridMode(seasons, rows, minScore, maxScore, scale = 1){
 
     if (a != null) {
       const shown = Number(a.toFixed(1));
-
       ctx.font = L.fontAvg;
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(formatScore(shown), px(x + L.cellW/2), px(avgY - 6));
+      drawTextCentered(formatScore(shown), x + L.cellW/2, avgY - 6);
 
       const b = pickBucket(shown, minScore, maxScore);
       const barY = avgY + AVG.barOffset;
       ctx.fillStyle = b.color;
-      roundRectPath(px(x), px(barY), px(L.cellW), px(AVG.barH), 999);
+      roundRectPath(x, barY, L.cellW, AVG.barH, 999);
       ctx.fill();
     }
   }
@@ -982,9 +945,6 @@ function syncSeasonDropdown(seasons){
 function render(){
   buildLegend();
 
-  const minScore = MIN_SCORE;
-  const maxScore = MAX_SCORE;
-
   const { seasons, rows } = parseCSV(csvEl.value);
 
   if (cardBgImages.length !== seasons.length){
@@ -995,17 +955,14 @@ function render(){
 
   syncSeasonDropdown(seasons);
 
-  // Preview: DPR cap à 2 pour limiter la charge iPhone
-  const PREVIEW_SCALE = Math.min(window.devicePixelRatio || 1, 2);
-
   if (seasonalMode){
-    renderSeasonalMode(seasons, rows, minScore, maxScore, PREVIEW_SCALE);
+    renderSeasonalMode(seasons, rows, MIN_SCORE, MAX_SCORE);
   } else {
-    renderGridMode(seasons, rows, minScore, maxScore, PREVIEW_SCALE);
+    renderGridMode(seasons, rows, MIN_SCORE, MAX_SCORE);
   }
 }
 
-/* Export iOS: le "download" peut ne pas marcher => fallback onglet */
+/* iOS detection */
 function isIOS(){
   const ua = navigator.userAgent || "";
   const iOS = /iPad|iPhone|iPod/.test(ua);
@@ -1013,26 +970,33 @@ function isIOS(){
   return iOS || iPadOS;
 }
 
-/* Export HD natif (pas d’upscale) */
+/* Export HD (scale) */
 function exportPNG(){
-  const { seasons, rows } = parseCSV(csvEl.value);
+  const scale = EXPORT_SCALE;
 
-  if (seasonalMode){
-    renderSeasonalMode(seasons, rows, MIN_SCORE, MAX_SCORE, EXPORT_SCALE);
-  } else {
-    renderGridMode(seasons, rows, MIN_SCORE, MAX_SCORE, EXPORT_SCALE);
-  }
+  const width = canvas.width;
+  const height = canvas.height;
 
-  const dataUrl = canvas.toDataURL("image/png");
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = width * scale;
+  exportCanvas.height = height * scale;
 
-  // Restore preview
-  render();
+  const exportCtx = exportCanvas.getContext("2d");
+  exportCtx.imageSmoothingEnabled = true;
+  exportCtx.imageSmoothingQuality = "high";
+  exportCtx.setTransform(scale, 0, 0, scale, 0, 0);
+
+  // draw current canvas into exportCanvas (vector already rasterized)
+  // Better: re-render at scale by temporarily swapping ctx/canvas (but your setup already works)
+  exportCtx.drawImage(canvas, 0, 0, width * scale, height * scale);
+
+  const dataUrl = exportCanvas.toDataURL("image/png");
 
   if (isIOS()){
     const w = window.open();
     if (!w) return;
-    w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1"><title>Export</title>`);
-    w.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;display:block"/>`);
+    w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1">`);
+    w.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;display:block">`);
     w.document.close();
     return;
   }
