@@ -455,6 +455,7 @@ let logoImage = null;
 let cardBgImages = []; // Array<Image|null>
 
 function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+const px = (n) => Math.round(n);
 
 /* CSV : ""/NA => null ; X => "X" */
 function parseCSV(text){
