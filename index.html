@@ -411,37 +411,15 @@ const CARD = {
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d", { alpha: true });
 
-  // ===== Export sharpness =====
-function exportPNG(){
+const EXPORT_SCALE = 3;
 
-  const scale = 3;
-
-  // Dimensions actuelles preview
-  const width = canvas.width;
-  const height = canvas.height;
-
-  // Canvas export
-  const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = width * scale;
-  exportCanvas.height = height * scale;
-
-  renderToCanvas(exportCanvas, scale);
-
-  const dataUrl = exportCanvas.toDataURL("image/png");
-
-  if (isIOS()){
-    const w = window.open();
-    w.document.write(`<img src="${dataUrl}" style="width:100%">`);
-    w.document.close();
-    return;
-  }
-
-  const a = document.createElement("a");
-  a.download = seasonalMode ? "series_cards.png" : "series_grid.png";
-  a.href = dataUrl;
-  a.click();
+function setCanvasSize(cssW, cssH, scale = 1){
+  canvas.width  = Math.round(cssW * scale);
+  canvas.height = Math.round(cssH * scale);
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
 }
 
+  // ===== Export sharpness =====
 const csvEl = document.getElementById("csv");
 const legendEl = document.getElementById("legend");
 
@@ -767,9 +745,9 @@ function drawLogoCardInline(x, y, w, h){
   ctx.restore();
 }
 
-function renderSeasonalMode(seasons, rows, minScore, maxScore){
-  canvas.width = 900;
-  const W = canvas.width;
+function renderSeasonalMode(seasons, rows, minScore, maxScore, scale = 1){
+  const cssW = 900;
+  const W = cssW;
 
   const cols = (W >= CARD.colsMinW) ? 2 : 1;
   const pad = CARD.pad;
@@ -781,17 +759,11 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
 
   const cardH = CARD.cardH;
 
-  // 1) items = saisons
   let items = computeSeasonAverages(seasons, rows);
 
-  // 2) Si 2 colonnes + nb saisons impair + logo chargé => on AJOUTE le logo en dernier
-  //    (case paire vide du dernier rang)
   const useInlineLogoFiller = (cols === 2) && (items.length % 2 === 1) && !!logoImage;
-  if (useInlineLogoFiller){
-    items = [...items, { type: "logo" }];
-  }
+  if (useInlineLogoFiller) items = [...items, { type: "logo" }];
 
-  // 3) Footer logo UNIQUEMENT si pas de filler inline (donc visible quand nb saisons est pair)
   const useFooterLogo = !!logoImage && !useInlineLogoFiller;
 
   const rowsCount = Math.ceil(items.length / cols);
@@ -802,13 +774,14 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
   const footerGap = useFooterLogo ? 16 : 0;
 
   const Hneeded = pad + cardsBlockH + footerGap + footerH + pad;
-  canvas.height = Math.max(Math.ceil(Hneeded), 420);
+  const cssH = Math.max(Math.ceil(Hneeded), 420);
 
-  const H = canvas.height;
+  setCanvasSize(cssW, cssH, scale);
+
+  const H = cssH;
   ctx.clearRect(0,0,W,H);
   drawBackground(W,H);
 
-  // 4) Dessin des cards
   for (let i=0; i<items.length; i++){
     const r = Math.floor(i / cols);
     const c = i % cols;
@@ -825,7 +798,6 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
     drawSeasonCard(x, y, cardW, cardH, item, minScore, maxScore);
   }
 
-  // 5) Logo footer (quand nb saisons pair)
   if (useFooterLogo){
     const footerTop = pad + cardsBlockH + footerGap;
     drawLogoInFooter(W, footerTop, footerH);
@@ -835,7 +807,7 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
 /* =========================
    MODE GRILLE
 ========================= */
-function renderGridMode(seasons, rows, minScore, maxScore){
+function renderGridMode(seasons, rows, minScore, maxScore, scale = 1){
   const S = seasons.length;
   const E = rows.length;
 
@@ -845,7 +817,7 @@ function renderGridMode(seasons, rows, minScore, maxScore){
     (Math.max(0, S - 1) * L.gapX) +
     L.pad * 2;
 
-  canvas.width = Math.max(900, gridWidthNeeded);
+  const cssW = Math.max(900, gridWidthNeeded);
 
   const gridH = (E * L.cellH) + (Math.max(0, E - 1) * L.gapY);
   const t = clamp((E - FLEX.fewEp) / 10, 0, 1);
@@ -862,10 +834,12 @@ function renderGridMode(seasons, rows, minScore, maxScore){
   const footerTop = avgY + AVG.blockH + FOOTER.gapFromAvg;
 
   const Hneeded = footerTop + footerH + L.pad;
-  canvas.height = Math.max(Math.ceil(Hneeded), 420);
+  const cssH = Math.max(Math.ceil(Hneeded), 420);
 
-  const W = canvas.width;
-  const H = canvas.height;
+  setCanvasSize(cssW, cssH, scale);
+
+  const W = cssW;
+  const H = cssH;
 
   ctx.clearRect(0,0,W,H);
   drawBackground(W,H);
@@ -924,8 +898,6 @@ function renderGridMode(seasons, rows, minScore, maxScore){
     }
   }
 
-  // AVG label dans ton original : tu peux le laisser ou le retirer.
-  // (je le laisse identique à ton code fourni)
   ctx.font = L.fontAvgLabel;
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
@@ -940,24 +912,20 @@ function renderGridMode(seasons, rows, minScore, maxScore){
     const a = avg(col);
     const x = gridX0 + s * (L.cellW + L.gapX);
 
-    ctx.font = L.fontAvg;
-    ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(a == null ? "" : formatScore(a), x + L.cellW/2, avgY - 6);
+    if (a != null) {
+      const shown = Number(a.toFixed(1));
+      ctx.font = L.fontAvg;
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(formatScore(shown), x + L.cellW/2, avgY - 6);
 
-if (a != null) {
-  const shown = Number(a.toFixed(1));     // <-- single source of truth
-  ctx.fillText(formatScore(shown), x + L.cellW/2, avgY - 6);
-
-  const b = pickBucket(shown, minScore, maxScore);
-  const barY = avgY + AVG.barOffset;
-  ctx.fillStyle = b.color;
-  roundRectPath(x, barY, L.cellW, AVG.barH, 999);
-  ctx.fill();
-} else {
-  ctx.fillText("", x + L.cellW/2, avgY - 6);
-}
+      const b = pickBucket(shown, minScore, maxScore);
+      const barY = avgY + AVG.barOffset;
+      ctx.fillStyle = b.color;
+      roundRectPath(x, barY, L.cellW, AVG.barH, 999);
+      ctx.fill();
+    }
   }
 
   drawLogoInFooter(W, footerTop, footerH);
@@ -1004,10 +972,10 @@ function render(){
   syncSeasonDropdown(seasons);
 
   if (seasonalMode){
-    renderSeasonalMode(seasons, rows, minScore, maxScore);
-  } else {
-    renderGridMode(seasons, rows, minScore, maxScore);
-  }
+  renderSeasonalMode(seasons, rows, minScore, maxScore, 1);
+} else {
+  renderGridMode(seasons, rows, minScore, maxScore, 1);
+}
 }
 
 /* Export iOS: le "download" peut ne pas marcher => fallback onglet */
@@ -1019,25 +987,24 @@ function isIOS(){
 }
 
 function exportPNG(){
+  const { seasons, rows } = parseCSV(csvEl.value);
 
-  const scale = 3;
+  if (seasonalMode){
+    renderSeasonalMode(seasons, rows, MIN_SCORE, MAX_SCORE, EXPORT_SCALE);
+  } else {
+    renderGridMode(seasons, rows, MIN_SCORE, MAX_SCORE, EXPORT_SCALE);
+  }
 
-  // Dimensions actuelles preview
-  const width = canvas.width;
-  const height = canvas.height;
+  const dataUrl = canvas.toDataURL("image/png");
 
-  // Canvas export
-  const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = width * scale;
-  exportCanvas.height = height * scale;
-
-  renderToCanvas(exportCanvas, scale);
-
-  const dataUrl = exportCanvas.toDataURL("image/png");
+  // revenir au preview normal
+  render();
 
   if (isIOS()){
     const w = window.open();
-    w.document.write(`<img src="${dataUrl}" style="width:100%">`);
+    if (!w) return;
+    w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1">`);
+    w.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;display:block"/>`);
     w.document.close();
     return;
   }
@@ -1061,34 +1028,6 @@ function fileToImage(file){
 /* =========================
    EVENTS
 ========================= */
-function renderToCanvas(targetCanvas, scale = 1){
-
-  const targetCtx = targetCanvas.getContext("2d");
-
-  const { seasons, rows } = parseCSV(csvEl.value);
-
-  // On sauvegarde les références originales
-  const originalCanvas = canvas;
-  const originalCtx = ctx;
-
-  // On redirige temporairement canvas + ctx
-  window.canvas = targetCanvas;
-  window.ctx = targetCtx;
-
-  // Scale
-  targetCtx.setTransform(scale, 0, 0, scale, 0, 0);
-
-  if (seasonalMode){
-    renderSeasonalMode(seasons, rows, MIN_SCORE, MAX_SCORE);
-  } else {
-    renderGridMode(seasons, rows, MIN_SCORE, MAX_SCORE);
-  }
-
-  // On restaure
-  window.canvas = originalCanvas;
-  window.ctx = originalCtx;
-}
-
 csvEl.addEventListener("input", render);
 
 modeBtn.addEventListener("click", () => {
