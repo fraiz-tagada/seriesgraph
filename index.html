@@ -412,18 +412,50 @@ const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d", { alpha: true });
 
   // ===== Export sharpness =====
-const EXPORT_SCALE = 3; // 2 = good, 3 = very sharp, 4 = heavy for iPhone
+function exportPNG(){
 
-function setCanvasSize(cssW, cssH, scale = 1){
-  canvas.width  = Math.round(cssW * scale);
-  canvas.height = Math.round(cssH * scale);
+  const { seasons, rows } = parseCSV(csvEl.value);
 
-  // Draw using your usual coordinates (CSS pixels)
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  const scale = 3; // 2 ou 3 recommandé
 
-  // Optional smoothing (mostly affects images, not vector/text)
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
+  // 1️⃣ Sauvegarde dimensions actuelles
+  const originalWidth = canvas.width;
+  const originalHeight = canvas.height;
+
+  // 2️⃣ Créer un canvas temporaire haute résolution
+  const tmpCanvas = document.createElement("canvas");
+  const tmpCtx = tmpCanvas.getContext("2d");
+
+  // 3️⃣ Calculer dimensions export
+  const exportWidth = originalWidth * scale;
+  const exportHeight = originalHeight * scale;
+
+  tmpCanvas.width = exportWidth;
+  tmpCanvas.height = exportHeight;
+
+  // 4️⃣ Dessiner ton canvas actuel dedans en upscale
+  tmpCtx.imageSmoothingEnabled = true;
+  tmpCtx.imageSmoothingQuality = "high";
+
+  tmpCtx.drawImage(canvas, 0, 0, exportWidth, exportHeight);
+
+  // 5️⃣ Export
+  const dataUrl = tmpCanvas.toDataURL("image/png");
+
+  // 6️⃣ Download / iOS open
+  if (isIOS()){
+    const w = window.open();
+    if (!w) return;
+    w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1">`);
+    w.document.write(`<img src="${dataUrl}" style="width:100%">`);
+    w.document.close();
+    return;
+  }
+
+  const a = document.createElement("a");
+  a.download = seasonalMode ? "series_cards.png" : "series_grid.png";
+  a.href = dataUrl;
+  a.click();
 }
 
 const csvEl = document.getElementById("csv");
