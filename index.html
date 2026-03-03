@@ -1019,14 +1019,25 @@ function isIOS(){
 }
 
 function exportPNG(){
-  const dataUrl = canvas.toDataURL("image/png");
+
+  const scale = 3;
+
+  // Dimensions actuelles preview
+  const width = canvas.width;
+  const height = canvas.height;
+
+  // Canvas export
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = width * scale;
+  exportCanvas.height = height * scale;
+
+  renderToCanvas(exportCanvas, scale);
+
+  const dataUrl = exportCanvas.toDataURL("image/png");
 
   if (isIOS()){
-    // iOS Safari: ouvrir dans un onglet, puis "Partager" -> "Enregistrer l'image"
     const w = window.open();
-    if (!w) return;
-    w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1"><title>Export</title>`);
-    w.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;display:block"/>`);
+    w.document.write(`<img src="${dataUrl}" style="width:100%">`);
     w.document.close();
     return;
   }
