@@ -304,6 +304,7 @@ NA,NA,NA,7.2,NA</textarea>
   </div>
 
   <canvas id="c" width="900" height="1200"></canvas>
+  <img id="exportPreview" class="hidden" alt="Export preview" style="width:100%;height:auto;border-radius:18px;display:block;margin-top:12px;border:1px solid rgba(255,255,255,.10)">
 </div>
 
 <script>
@@ -398,6 +399,9 @@ const CARD = {
 
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d", { alpha: true });
+
+const exportPreview = document.getElementById("exportPreview");
+let exportPreviewUrl = null;
 
 // Active pointers (preview vs export)
 let activeCanvas = canvas;
@@ -1018,24 +1022,40 @@ async function exportPNG(){
   exportCanvas.width = Math.round(width * scale);
   exportCanvas.height = Math.round(height * scale);
 
+  // Si tu utilises Inter, attends la font (sinon tu peux enlever ces 2 lignes)
+  if (typeof ensureFontsLoaded === "function") await ensureFontsLoaded();
+
   renderToCanvas(exportCanvas, scale);
 
-const filename = seasonalMode ? "series_cards.png" : "series_grid.png";
+  const filename = seasonalMode ? "series_cards.png" : "series_grid.png";
 
   exportCanvas.toBlob((blob) => {
     if (!blob) return;
 
     const url = URL.createObjectURL(blob);
+
+    // 1) PREVIEW (dans la page)
+    if (exportPreviewUrl) URL.revokeObjectURL(exportPreviewUrl);
+    exportPreviewUrl = url;
+    exportPreview.src = url;
+    exportPreview.classList.remove("hidden");
+
+    // 2) DOWNLOAD direct
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
-
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
 
-    URL.revokeObjectURL(url);
+    // IMPORTANT: ne revoke pas tout de suite, sinon iOS peut foirer le download
+    setTimeout(() => {
+      // On garde l’URL pour la preview. Si tu veux libérer la mémoire, cache la preview et revoke.
+      // URL.revokeObjectURL(url);
+    }, 1500);
+
   }, "image/png");
+}
 
 function fileToImage(file){
   return new Promise((resolve, reject) => {
