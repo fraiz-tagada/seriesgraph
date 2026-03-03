@@ -1,5 +1,10 @@
 <!doctype html>
 <html lang="fr">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&display=swap" rel="stylesheet">
+  
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
@@ -357,10 +362,10 @@ const L = {
   shadowBlur: 0,
   shadowY: 0,
 
-  fontAxis: "700 17px system-ui, -apple-system, system-ui, BlinkMacSystemFont",
-  fontCell: "700 30px system-ui, -apple-system, system-ui, BlinkMacSystemFont",
-  fontAvg: "600 29px system-ui, -apple-system, system-ui, BlinkMacSystemFont",
-  fontAvgLabel: "600 18px system-ui, -apple-system, system-ui, BlinkMacSystemFont",
+  fontAxis: "700 17px Inter, system-ui, -apple-system",
+  fontCell: "700 30px Inter, system-ui, -apple-system",
+  fontAvg: "600 29px Inter, system-ui, -apple-system",
+  fontAvgLabel: "600 18px Inter, system-ui, -apple-system",
 };
 
 const FLEX = {
@@ -403,8 +408,8 @@ const CARD = {
   innerPadX: 28,
   badgeSize: 56,
   badgeRadius: 12,
-  titleFont: "800 30px system-ui, -apple-system, Segoe UI, Roboto, Arial",
-  badgeFont: "800 24px system-ui, -apple-system, Segoe UI, Roboto, Arial",
+  titleFont: "800 30px Inter, system-ui, -apple-system",
+  badgeFont: "800 24px Inter, system-ui, -apple-system",
   bgOpacity: 0.90,
 };
 
@@ -979,6 +984,15 @@ function render(){
 }
 
 /* Export iOS: le "download" peut ne pas marcher => fallback onglet */
+async function ensureFonts(){
+  if (!document.fonts) return;
+  // charge explicitement les poids/tailles utilisés
+  await document.fonts.load("600 18px Inter");
+  await document.fonts.load("700 30px Inter");
+  await document.fonts.load("800 30px Inter");
+  await document.fonts.ready;
+}
+  
 function isIOS(){
   const ua = navigator.userAgent || "";
   const iOS = /iPad|iPhone|iPod/.test(ua);
@@ -986,7 +1000,10 @@ function isIOS(){
   return iOS || iPadOS;
 }
 
-function exportPNG(){
+async function exportPNG(){
+
+  await ensureFonts();  // ← IMPORTANT
+
   const { seasons, rows } = parseCSV(csvEl.value);
 
   if (seasonalMode){
@@ -997,8 +1014,7 @@ function exportPNG(){
 
   const dataUrl = canvas.toDataURL("image/png");
 
-  // revenir au preview normal
-  render();
+  render(); // restore preview
 
   if (isIOS()){
     const w = window.open();
@@ -1103,9 +1119,12 @@ clearLogoBtn.addEventListener("click", () => {
 });
 
 /* init */
-buildLegend();
-syncCardBgUI();
-render();
+(async () => {
+  buildLegend();
+  syncCardBgUI();
+  await ensureFonts();
+  render();
+})();
 </script>
 </body>
 </html>
