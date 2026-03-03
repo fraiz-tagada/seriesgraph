@@ -1011,30 +1011,36 @@ function renderToCanvas(targetCanvas, scale = 1){
 function exportPNG(){
   const scale = EXPORT_SCALE;
 
-  const width = canvas.width;
-  const height = canvas.height;
-
+  const src = canvas; // preview déjà rendue (900px ou plus)
   const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = Math.round(width * scale);
-  exportCanvas.height = Math.round(height * scale);
+  exportCanvas.width = Math.round(src.width * scale);
+  exportCanvas.height = Math.round(src.height * scale);
 
-  renderToCanvas(exportCanvas, scale);
+  const ectx = exportCanvas.getContext("2d", { alpha: true });
 
-  const dataUrl = exportCanvas.toDataURL("image/png");
+  // upscale net
+  ectx.setTransform(scale, 0, 0, scale, 0, 0);
+  ectx.imageSmoothingEnabled = true;
+  ectx.imageSmoothingQuality = "high";
+  ectx.drawImage(src, 0, 0);
 
-  if (isIOS()){
-    const w = window.open();
-    if (!w) return;
-    w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1">`);
-    w.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;display:block">`);
-    w.document.close();
-    return;
-  }
+  const filename = seasonalMode ? "series_cards.png" : "series_grid.png";
 
-  const a = document.createElement("a");
-  a.download = seasonalMode ? "series_cards.png" : "series_grid.png";
-  a.href = dataUrl;
-  a.click();
+  exportCanvas.toBlob((blob) => {
+    if (!blob) return;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // iOS: évite de revoke trop vite
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }, "image/png");
 }
 
 function fileToImage(file){
