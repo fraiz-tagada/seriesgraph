@@ -1015,17 +1015,18 @@ function renderToCanvas(targetCanvas, scale = 1){
 async function exportPNG(){
   const scale = EXPORT_SCALE;
 
-  const width = canvas.width;
-  const height = canvas.height;
-
+  const src = canvas; // ton canvas preview déjà rendu
   const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = Math.round(width * scale);
-  exportCanvas.height = Math.round(height * scale);
+  exportCanvas.width = Math.round(src.width * scale);
+  exportCanvas.height = Math.round(src.height * scale);
 
-  // Si tu utilises Inter, attends la font (sinon tu peux enlever ces 2 lignes)
-  if (typeof ensureFontsLoaded === "function") await ensureFontsLoaded();
+  const ectx = exportCanvas.getContext("2d", { alpha: true });
 
-  renderToCanvas(exportCanvas, scale);
+  // upscale propre
+  ectx.setTransform(scale, 0, 0, scale, 0, 0);
+  ectx.imageSmoothingEnabled = true;
+  ectx.imageSmoothingQuality = "high";
+  ectx.drawImage(src, 0, 0);
 
   const filename = seasonalMode ? "series_cards.png" : "series_grid.png";
 
@@ -1034,13 +1035,15 @@ async function exportPNG(){
 
     const url = URL.createObjectURL(blob);
 
-    // 1) PREVIEW (dans la page)
-    if (exportPreviewUrl) URL.revokeObjectURL(exportPreviewUrl);
-    exportPreviewUrl = url;
-    exportPreview.src = url;
-    exportPreview.classList.remove("hidden");
+    // Preview export (si tu as ajouté l’img)
+    if (typeof exportPreview !== "undefined" && exportPreview){
+      if (typeof exportPreviewUrl !== "undefined" && exportPreviewUrl) URL.revokeObjectURL(exportPreviewUrl);
+      exportPreviewUrl = url;
+      exportPreview.src = url;
+      exportPreview.classList.remove("hidden");
+    }
 
-    // 2) DOWNLOAD direct
+    // Download direct
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
@@ -1048,12 +1051,11 @@ async function exportPNG(){
     a.click();
     document.body.removeChild(a);
 
-    // IMPORTANT: ne revoke pas tout de suite, sinon iOS peut foirer le download
+    // Ne revoke pas tout de suite (iOS peut foirer)
     setTimeout(() => {
-      // On garde l’URL pour la preview. Si tu veux libérer la mémoire, cache la preview et revoke.
+      // si tu n’utilises pas la preview, tu peux revoke ici
       // URL.revokeObjectURL(url);
     }, 1500);
-
   }, "image/png");
 }
 
