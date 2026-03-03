@@ -750,9 +750,9 @@ function drawLogoCardInline(x, y, w, h){
   ctx.restore();
 }
 
-function renderSeasonalMode(seasons, rows, minScore, maxScore){
-  canvas.width = 900;
-  const W = canvas.width;
+function renderSeasonalMode(seasons, rows, minScore, maxScore, scale = 1){
+  const cssW = 900;
+  const W = cssW;
 
   const cols = (W >= CARD.colsMinW) ? 2 : 1;
   const pad = CARD.pad;
@@ -785,9 +785,11 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
   const footerGap = useFooterLogo ? 16 : 0;
 
   const Hneeded = pad + cardsBlockH + footerGap + footerH + pad;
-  canvas.height = Math.max(Math.ceil(Hneeded), 420);
-
-  const H = canvas.height;
+  const cssH = Math.max(Math.ceil(Hneeded), 420);
+  
+  setCanvasSize(cssW, cssH, scale);
+  
+  const H = cssH;
   ctx.clearRect(0,0,W,H);
   drawBackground(W,H);
 
@@ -818,7 +820,7 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
 /* =========================
    MODE GRILLE
 ========================= */
-function renderGridMode(seasons, rows, minScore, maxScore){
+function renderGridMode(seasons, rows, minScore, maxScore, scale = 1){
   const S = seasons.length;
   const E = rows.length;
 
@@ -828,7 +830,7 @@ function renderGridMode(seasons, rows, minScore, maxScore){
     (Math.max(0, S - 1) * L.gapX) +
     L.pad * 2;
 
-  canvas.width = Math.max(900, gridWidthNeeded);
+  const cssW = Math.max(900, gridWidthNeeded);
 
   const gridH = (E * L.cellH) + (Math.max(0, E - 1) * L.gapY);
   const t = clamp((E - FLEX.fewEp) / 10, 0, 1);
@@ -845,11 +847,13 @@ function renderGridMode(seasons, rows, minScore, maxScore){
   const footerTop = avgY + AVG.blockH + FOOTER.gapFromAvg;
 
   const Hneeded = footerTop + footerH + L.pad;
-  canvas.height = Math.max(Math.ceil(Hneeded), 420);
+  const cssH = Math.max(Math.ceil(Hneeded), 420);
 
-  const W = canvas.width;
-  const H = canvas.height;
-
+  setCanvasSize(cssW, cssH, scale);
+  
+  const W = cssW;
+  const H = cssH;
+  
   ctx.clearRect(0,0,W,H);
   drawBackground(W,H);
 
@@ -987,11 +991,10 @@ function render(){
   syncSeasonDropdown(seasons);
 
   if (seasonalMode){
-    renderSeasonalMode(seasons, rows, minScore, maxScore);
+    renderSeasonalMode(seasons, rows, minScore, maxScore, 1);
   } else {
-    renderGridMode(seasons, rows, minScore, maxScore);
+    renderGridMode(seasons, rows, minScore, maxScore, 1);
   }
-}
 
 /* Export iOS: le "download" peut ne pas marcher => fallback onglet */
 function isIOS(){
@@ -1002,10 +1005,21 @@ function isIOS(){
 }
 
 function exportPNG(){
+  const { seasons, rows } = parseCSV(csvEl.value);
+
+  // Render high-res for export
+  if (seasonalMode){
+    renderSeasonalMode(seasons, rows, MIN_SCORE, MAX_SCORE, EXPORT_SCALE);
+  } else {
+    renderGridMode(seasons, rows, MIN_SCORE, MAX_SCORE, EXPORT_SCALE);
+  }
+
   const dataUrl = canvas.toDataURL("image/png");
 
+  // Restore normal preview (1x)
+  render();
+
   if (isIOS()){
-    // iOS Safari: ouvrir dans un onglet, puis "Partager" -> "Enregistrer l'image"
     const w = window.open();
     if (!w) return;
     w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1"><title>Export</title>`);
