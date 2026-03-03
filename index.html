@@ -411,6 +411,21 @@ const CARD = {
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d", { alpha: true });
 
+  // ===== Export sharpness =====
+const EXPORT_SCALE = 3; // 2 = good, 3 = very sharp, 4 = heavy for iPhone
+
+function setCanvasSize(cssW, cssH, scale = 1){
+  canvas.width  = Math.round(cssW * scale);
+  canvas.height = Math.round(cssH * scale);
+
+  // Draw using your usual coordinates (CSS pixels)
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+
+  // Optional smoothing (mostly affects images, not vector/text)
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+}
+
 const csvEl = document.getElementById("csv");
 const legendEl = document.getElementById("legend");
 
