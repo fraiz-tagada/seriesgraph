@@ -304,7 +304,6 @@ NA,NA,NA,7.2,NA</textarea>
   </div>
 
   <canvas id="c" width="900" height="1200"></canvas>
-  <img id="exportPreview" class="hidden" alt="Export preview" style="width:100%;height:auto;border-radius:18px;display:block;margin-top:12px;border:1px solid rgba(255,255,255,.10)">
 </div>
 
 <script>
@@ -399,9 +398,6 @@ const CARD = {
 
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d", { alpha: true });
-
-const exportPreview = document.getElementById("exportPreview");
-let exportPreviewUrl = null;
 
 // Active pointers (preview vs export)
 let activeCanvas = canvas;
@@ -1012,51 +1008,33 @@ function renderToCanvas(targetCanvas, scale = 1){
 }
 
 /* Export HD (scale) */
-async function exportPNG(){
+function exportPNG(){
   const scale = EXPORT_SCALE;
 
-  const src = canvas; // ton canvas preview déjà rendu
+  const width = canvas.width;
+  const height = canvas.height;
+
   const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = Math.round(src.width * scale);
-  exportCanvas.height = Math.round(src.height * scale);
+  exportCanvas.width = Math.round(width * scale);
+  exportCanvas.height = Math.round(height * scale);
 
-  const ectx = exportCanvas.getContext("2d", { alpha: true });
+  renderToCanvas(exportCanvas, scale);
 
-  // upscale propre
-  ectx.setTransform(scale, 0, 0, scale, 0, 0);
-  ectx.imageSmoothingEnabled = true;
-  ectx.imageSmoothingQuality = "high";
-  ectx.drawImage(src, 0, 0);
+  const dataUrl = exportCanvas.toDataURL("image/png");
 
-  const filename = seasonalMode ? "series_cards.png" : "series_grid.png";
+  if (isIOS()){
+    const w = window.open();
+    if (!w) return;
+    w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1">`);
+    w.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;display:block">`);
+    w.document.close();
+    return;
+  }
 
-  exportCanvas.toBlob((blob) => {
-    if (!blob) return;
-
-    const url = URL.createObjectURL(blob);
-
-    // Preview export (si tu as ajouté l’img)
-    if (typeof exportPreview !== "undefined" && exportPreview){
-      if (typeof exportPreviewUrl !== "undefined" && exportPreviewUrl) URL.revokeObjectURL(exportPreviewUrl);
-      exportPreviewUrl = url;
-      exportPreview.src = url;
-      exportPreview.classList.remove("hidden");
-    }
-
-    // Download direct
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    // Ne revoke pas tout de suite (iOS peut foirer)
-    setTimeout(() => {
-      // si tu n’utilises pas la preview, tu peux revoke ici
-      // URL.revokeObjectURL(url);
-    }, 1500);
-  }, "image/png");
+  const a = document.createElement("a");
+  a.download = seasonalMode ? "series_cards.png" : "series_grid.png";
+  a.href = dataUrl;
+  a.click();
 }
 
 function fileToImage(file){
