@@ -414,39 +414,23 @@ const ctx = canvas.getContext("2d", { alpha: true });
   // ===== Export sharpness =====
 function exportPNG(){
 
-  const { seasons, rows } = parseCSV(csvEl.value);
+  const scale = 3;
 
-  const scale = 3; // 2 ou 3 recommandé
+  // Dimensions actuelles preview
+  const width = canvas.width;
+  const height = canvas.height;
 
-  // 1️⃣ Sauvegarde dimensions actuelles
-  const originalWidth = canvas.width;
-  const originalHeight = canvas.height;
+  // Canvas export
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = width * scale;
+  exportCanvas.height = height * scale;
 
-  // 2️⃣ Créer un canvas temporaire haute résolution
-  const tmpCanvas = document.createElement("canvas");
-  const tmpCtx = tmpCanvas.getContext("2d");
+  renderToCanvas(exportCanvas, scale);
 
-  // 3️⃣ Calculer dimensions export
-  const exportWidth = originalWidth * scale;
-  const exportHeight = originalHeight * scale;
+  const dataUrl = exportCanvas.toDataURL("image/png");
 
-  tmpCanvas.width = exportWidth;
-  tmpCanvas.height = exportHeight;
-
-  // 4️⃣ Dessiner ton canvas actuel dedans en upscale
-  tmpCtx.imageSmoothingEnabled = true;
-  tmpCtx.imageSmoothingQuality = "high";
-
-  tmpCtx.drawImage(canvas, 0, 0, exportWidth, exportHeight);
-
-  // 5️⃣ Export
-  const dataUrl = tmpCanvas.toDataURL("image/png");
-
-  // 6️⃣ Download / iOS open
   if (isIOS()){
     const w = window.open();
-    if (!w) return;
-    w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1">`);
     w.document.write(`<img src="${dataUrl}" style="width:100%">`);
     w.document.close();
     return;
@@ -1066,6 +1050,34 @@ function fileToImage(file){
 /* =========================
    EVENTS
 ========================= */
+function renderToCanvas(targetCanvas, scale = 1){
+
+  const targetCtx = targetCanvas.getContext("2d");
+
+  const { seasons, rows } = parseCSV(csvEl.value);
+
+  // On sauvegarde les références originales
+  const originalCanvas = canvas;
+  const originalCtx = ctx;
+
+  // On redirige temporairement canvas + ctx
+  window.canvas = targetCanvas;
+  window.ctx = targetCtx;
+
+  // Scale
+  targetCtx.setTransform(scale, 0, 0, scale, 0, 0);
+
+  if (seasonalMode){
+    renderSeasonalMode(seasons, rows, MIN_SCORE, MAX_SCORE);
+  } else {
+    renderGridMode(seasons, rows, MIN_SCORE, MAX_SCORE);
+  }
+
+  // On restaure
+  window.canvas = originalCanvas;
+  window.ctx = originalCtx;
+}
+
 csvEl.addEventListener("input", render);
 
 modeBtn.addEventListener("click", () => {
