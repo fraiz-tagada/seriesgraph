@@ -163,6 +163,20 @@
       font-size:16px;
     }
 
+    /* NEW: petite entrée pour note globale */
+    .smallInput{
+      min-height: var(--tap);
+      width: 120px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding:7px 10px;
+      outline:none;
+      font-weight:750;
+      font-size:16px;
+    }
+
     canvas{
       width:100%;
       height:auto;
@@ -279,6 +293,11 @@
           <input id="logoFile" type="file" accept="image/*" />
         </label>
         <button id="clearLogoBtn" class="ghost" type="button">Clear logo</button>
+
+        <!-- NEW: entrée note globale (fonctionne pour les 2 modes) -->
+        <label>Note globale
+          <input id="seriesScore" class="smallInput" type="text" inputmode="decimal" placeholder="ex: 9.5" />
+        </label>
       </div>
     </div>
 
@@ -349,6 +368,10 @@ const L = {
   fontCell: "700 30px -apple-system, system-ui, Segoe UI, Roboto, Arial",
   fontAvg: "650 29px -apple-system, system-ui, Segoe UI, Roboto, Arial",
   fontAvgLabel: "600 18px -apple-system, system-ui, Segoe UI, Roboto, Arial",
+
+  // NEW: zone note globale (sous le logo dans le footer)
+  fontSeriesScore: "800 26px -apple-system, system-ui, Segoe UI, Roboto, Arial",
+  fontSeriesScoreMeta: "650 16px -apple-system, system-ui, Segoe UI, Roboto, Arial",
 };
 
 const FLEX = {
@@ -366,7 +389,7 @@ const AVG = {
 
 const FOOTER = {
   gapFromAvg: 12,
-  minH: 78
+  minH: 92 // un peu plus haut pour caser "note globale" sous le logo
 };
 
 const LOGO = {
@@ -396,6 +419,14 @@ const CARD = {
   bgOpacity: 0.90,
 };
 
+// NEW: positionnement note globale en mode cartes (sous le logo dans le footer)
+const SERIES_SCORE = {
+  gapUnderLogo: 8,
+  starSize: 15,
+  lineH: 18,
+  yBias: 0
+};
+
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d", { alpha: true });
 
@@ -418,6 +449,10 @@ const clearBgBtn = document.getElementById("clearBgBtn");
 
 const logoFile = document.getElementById("logoFile");
 const clearLogoBtn = document.getElementById("clearLogoBtn");
+
+// NEW: input note globale
+const seriesScoreEl = document.getElementById("seriesScore");
+
 
 // UI per-card BG
 const cardBgLabel = document.getElementById("cardBgLabel");
@@ -552,8 +587,103 @@ function getLogoScaledSize(){
   return { w, h, s };
 }
 
+/* =========================
+   NOTE GLOBALE (helpers)
+========================= */
+function parseSeriesScoreInput(){
+  const raw = (seriesScoreEl?.value || "").trim();
+  if (!raw) return null;
+
+  const v = Number(raw.replace(",", "."));
+  if (!Number.isFinite(v)) return null;
+
+  return clamp(v, MIN_SCORE, MAX_SCORE);
+}
+
+function drawStarIcon(x, y, size, color){
+  // x,y = top-left
+  const cx = x + size/2;
+  const cy = y + size/2;
+  const spikes = 5;
+  const outer = size * 0.50;
+  const inner = size * 0.22;
+
+  let rot = -Math.PI / 2;
+  const step = Math.PI / spikes;
+
+  activeCtx.save();
+  activeCtx.beginPath();
+  activeCtx.moveTo(cx, cy - outer);
+  for (let i = 0; i < spikes; i++){
+    activeCtx.lineTo(cx + Math.cos(rot) * outer, cy + Math.sin(rot) * outer);
+    rot += step;
+    activeCtx.lineTo(cx + Math.cos(rot) * inner, cy + Math.sin(rot) * inner);
+    rot += step;
+  }
+  activeCtx.closePath();
+  activeCtx.fillStyle = color;
+  activeCtx.fill();
+  activeCtx.restore();
+}
+
+/* Dessine "⭐ 9.5" sous le logo, aligné à droite.
+   Retourne la hauteur utilisée (logo + score), pratique pour caler le footer si tu veux. */
+function drawSeriesScoreUnderLogo(W, footerTop, footerH, logoRect){
+  const score = parseSeriesScoreInput();
+  if (score == null) return;
+
+  // style
+  const star = SERIES_SCORE.starSize;
+  const gap = 8;
+
+  const textMain = formatScore(Math.round(score * 10) / 10);
+
+  // position: sous le logo
+  const xRight = logoRect.x + logoRect.w; // bord droit du logo
+  const yStart = logoRect.y + logoRect.h + SERIES_SCORE.gapUnderLogo + SERIES_SCORE.yBias;
+
+  // mesure pour aligner propre
+  activeCtx.save();
+  activeCtx.shadowColor = "rgba(0,0,0,0)";
+  activeCtx.shadowBlur = 0;
+  activeCtx.shadowOffsetX = 0;
+  activeCtx.shadowOffsetY = 0;
+
+  activeCtx.font = L.fontSeriesScore;
+  const mMain = activeCtx.measureText(textMain);
+  const blockW = star + gap + mMain.width;
+
+  // clamp: reste dans le footer
+  const padY = 8;
+  const yMin = footerTop + padY;
+  const yMax = footerTop + footerH - (star + 6) - padY;
+  const y = clamp(yStart, yMin, yMax);
+
+  const x = clamp(xRight - blockW, 8, W - 8 - blockW);
+
+  // couleur: si tu veux que ça reprenne la couleur du bucket de la note globale, c’est ici
+  const bucket = pickBucket(score, MIN_SCORE, MAX_SCORE);
+
+  // star
+  drawStarIcon(px(x), px(y + 4), star, "orange");
+
+  // texte note
+  activeCtx.fillStyle = bucket.text; // lisible sur fond
+  activeCtx.textAlign = "left";
+  drawTextCentered(textMain, x + star + gap + mMain.width/2, y + star/2 + 4);
+
+  // mini meta optionnel (comme ton exemple "(X episodes)") -> ici on met juste "Global"
+  activeCtx.font = L.fontSeriesScoreMeta;
+  activeCtx.fillStyle = "rgba(255,255,255,.70)";
+  activeCtx.textAlign = "right";
+  activeCtx.fillText("Global", px(xRight), px(y + star + 18));
+
+  activeCtx.restore();
+}
+
+/* Draw logo in footer + returns logo rect for score placement */
 function drawLogoInFooter(W, footerTop, footerH){
-  if (!logoImage) return;
+  if (!logoImage) return null;
   const { w, h } = getLogoScaledSize();
 
   const x = W - LOGO.padX - w;
@@ -573,6 +703,8 @@ function drawLogoInFooter(W, footerTop, footerH){
   activeCtx.globalAlpha = LOGO.opacity;
   activeCtx.drawImage(logoImage, x, y, w, h);
   activeCtx.restore();
+
+  return { x, y, w, h };
 }
 
 /* =========================
@@ -768,7 +900,15 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
   const cardsBlockH = (rowsCount * cardH) + (Math.max(0, rowsCount - 1) * gap);
 
   const { h: logoH } = getLogoScaledSize();
-  const footerH = useFooterLogo ? Math.max(FOOTER.minH, logoH + 24) : 0;
+
+  // NEW: si note globale, on prévoit de la place en + sous le logo
+  const hasSeriesScore = (parseSeriesScoreInput() != null);
+
+  const footerHBase = useFooterLogo ? Math.max(FOOTER.minH, logoH + 24) : 0;
+  const footerH = (useFooterLogo && hasSeriesScore)
+    ? Math.max(footerHBase, logoH + 24 + SERIES_SCORE.gapUnderLogo + 42)
+    : footerHBase;
+
   const footerGap = useFooterLogo ? 16 : 0;
 
   const Hneeded = pad + cardsBlockH + footerGap + footerH + pad;
@@ -796,7 +936,8 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
 
   if (useFooterLogo){
     const footerTop = pad + cardsBlockH + footerGap;
-    drawLogoInFooter(W, footerTop, footerH);
+    const logoRect = drawLogoInFooter(W, footerTop, footerH);
+    if (logoRect) drawSeriesScoreUnderLogo(W, footerTop, footerH, logoRect);
   }
 }
 
@@ -826,9 +967,14 @@ function renderGridMode(seasons, rows, minScore, maxScore){
   const avgY = gridY0 + gridH + AVG.gapFromGrid;
 
   const { h: logoH } = getLogoScaledSize();
-  const footerH = logoImage ? Math.max(FOOTER.minH, logoH + 24) : FOOTER.minH;
-  const footerTop = avgY + AVG.blockH + FOOTER.gapFromAvg;
+  const hasSeriesScore = (parseSeriesScoreInput() != null);
 
+  const footerHBase = logoImage ? Math.max(FOOTER.minH, logoH + 24) : FOOTER.minH;
+  const footerH = (logoImage && hasSeriesScore)
+    ? Math.max(footerHBase, logoH + 24 + SERIES_SCORE.gapUnderLogo + 42)
+    : footerHBase;
+
+  const footerTop = avgY + AVG.blockH + FOOTER.gapFromAvg;
   const Hneeded = footerTop + footerH + L.pad;
   activeCanvas.height = Math.max(Math.ceil(Hneeded), 420);
 
@@ -919,7 +1065,8 @@ function renderGridMode(seasons, rows, minScore, maxScore){
     }
   }
 
-  drawLogoInFooter(W, footerTop, footerH);
+  const logoRect = drawLogoInFooter(W, footerTop, footerH);
+  if (logoRect) drawSeriesScoreUnderLogo(W, footerTop, footerH, logoRect);
 }
 
 /* =========================
@@ -993,8 +1140,6 @@ function renderToCanvas(targetCanvas, scale = 1){
   activeCtx.imageSmoothingEnabled = true;
   activeCtx.imageSmoothingQuality = "high";
 
-  // Render full scene into target
-  // (render() will switch back to preview at start, so we call underlying renderers directly)
   const { seasons, rows } = parseCSV(csvEl.value);
 
   if (seasonalMode){
@@ -1057,6 +1202,10 @@ function fileToImage(file){
    EVENTS
 ========================= */
 csvEl.addEventListener("input", render);
+
+// NEW: rerender quand tu changes la note globale
+seriesScoreEl.addEventListener("input", render);
+seriesScoreEl.addEventListener("change", render);
 
 modeBtn.addEventListener("click", () => {
   seasonalMode = !seasonalMode;
