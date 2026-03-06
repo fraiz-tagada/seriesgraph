@@ -293,12 +293,10 @@
         </label>
         <button id="clearLogoBtn" class="ghost" type="button">Clear logo</button>
 
-        <!-- Note globale (toujours affichée si remplie) -->
         <label>Note globale
           <input id="seriesScore" class="smallInput" type="text" inputmode="decimal" placeholder="ex: 9.5" />
         </label>
 
-        <!-- Optionnel: override si tu veux un nombre fixe (sinon auto) -->
         <label>Episodes
           <input id="seriesEpisodesOverride" class="smallInput" type="text" inputmode="numeric" placeholder="auto" />
         </label>
@@ -330,15 +328,9 @@ NA,NA,NA,7.2,NA</textarea>
 </div>
 
 <script>
-/* =========================
-   CONFIG cachée (Min/Max)
-========================= */
 const MIN_SCORE = 1.0;
 const MAX_SCORE = 10.0;
 
-/* =========================
-   1) RANGES (légende = uniquement les 7)
-========================= */
 const ranges = [
   { label: "Cinema",  min: 9.6, max: 10.0, color: "#1DA1F2", text: "rgba(255,255,255,.95)" },
   { label: "Amazing", min: 9.0, max: 9.5,  color: "#186A3B", text: "rgba(255,255,255,.95)" },
@@ -351,9 +343,6 @@ const ranges = [
 const missing = { label: "Missing", color: "rgba(255,255,255,.10)", text: "rgba(255,255,255,0)" };
 const unknown = { label: "Unknown", color: "rgba(255,255,255,.18)", text: "rgba(255,255,255,.65)" };
 
-/* =========================
-   2) LAYOUT - MODE GRILLE
-========================= */
 const L = {
   pad: 38,
   leftLabelW: 64,
@@ -365,36 +354,22 @@ const L = {
   gapY: 10,
 
   r: 5,
-  shadowBlur: 0,
-  shadowY: 0,
 
   fontAxis: "700 17px -apple-system, system-ui, Segoe UI, Roboto, Arial",
   fontCell: "700 30px -apple-system, system-ui, Segoe UI, Roboto, Arial",
   fontAvg: "650 29px -apple-system, system-ui, Segoe UI, Roboto, Arial",
   fontAvgLabel: "600 18px -apple-system, system-ui, Segoe UI, Roboto, Arial",
 
-  // Note globale (style similaire à ton modèle)
-  fontSeriesScore: "800 44px -apple-system, system-ui, Segoe UI, Roboto, Arial",
-  fontSeriesMeta:  "650 44px -apple-system, system-ui, Segoe UI, Roboto, Arial",
+  fontSeriesScore: "800 22px -apple-system, system-ui, Segoe UI, Roboto, Arial",
+  fontSeriesMeta:  "650 22px -apple-system, system-ui, Segoe UI, Roboto, Arial",
 };
 
-const FLEX = {
-  fewEp: 7,
-  topMin: 34,
-  topMax: 70,
-};
+const FLEX = { fewEp: 7, topMin: 34, topMax: 70 };
 
-const AVG = {
-  gapFromGrid: 56,
-  blockH: 44,
-  barOffset: 18,
-  barH: 7
-};
+const AVG = { gapFromGrid: 56, blockH: 44, barOffset: 18, barH: 7 };
 
-const FOOTER = {
-  gapFromAvg: 12,
-  minH: 120
-};
+// ✅ gaps réduits
+const FOOTER = { gapFromAvg: 6, minH: 88 };
 
 const LOGO = {
   padX: 56,
@@ -406,9 +381,6 @@ const LOGO = {
   maxUpscale: 1.6
 };
 
-/* =========================
-   3) LAYOUT - MODE CARTES
-========================= */
 const CARD = {
   pad: 28,
   colsMinW: 900,
@@ -424,16 +396,16 @@ const CARD = {
 };
 
 const SERIES_FOOT = {
-  starSize: 46,
-  gap: 16,
-  gapUnderLogo: 10,
+  starSize: 22,
+  gap: 4,
+  gapUnderLogo: 19,
   padY: 10,
+  stackTopPad: 10,
 };
 
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d", { alpha: true });
 
-// Active pointers (preview vs export)
 let activeCanvas = canvas;
 let activeCtx = ctx;
 
@@ -453,11 +425,9 @@ const clearBgBtn = document.getElementById("clearBgBtn");
 const logoFile = document.getElementById("logoFile");
 const clearLogoBtn = document.getElementById("clearLogoBtn");
 
-// Note globale + override episodes
 const seriesScoreEl = document.getElementById("seriesScore");
 const seriesEpisodesOverrideEl = document.getElementById("seriesEpisodesOverride");
 
-// UI per-card BG
 const cardBgLabel = document.getElementById("cardBgLabel");
 const cardBgSeason = document.getElementById("cardBgSeason");
 const cardBgPickBtn = document.getElementById("cardBgPickBtn");
@@ -467,14 +437,11 @@ const cardBgFile = document.getElementById("cardBgFile");
 
 let bgImage = null;
 let logoImage = null;
-
-// backgrounds par carte (index = saison)
-let cardBgImages = []; // Array<Image|null>
+let cardBgImages = [];
 
 function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
 const px = (n) => Math.round(n);
 
-/* RNG déterministe */
 function mulberry32(a){
   return function(){
     let t = a += 0x6D2B79F5;
@@ -484,7 +451,6 @@ function mulberry32(a){
   };
 }
 
-/* Centrage texte stable iOS/macOS */
 function drawTextCentered(text, cx, cy){
   const m = activeCtx.measureText(text);
   const y = cy + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
@@ -492,7 +458,6 @@ function drawTextCentered(text, cx, cy){
   activeCtx.fillText(text, px(cx), px(y));
 }
 
-/* CSV : ""/NA => null ; X => "X" */
 function parseCSV(text){
   const lines = text.trim().split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
   if (!lines.length) return { seasons:[], rows:[] };
@@ -576,7 +541,6 @@ function drawBackground(W,H){
 ========================= */
 function getLogoScaledSize(){
   if (!logoImage) return { w: 0, h: 0, s: 1 };
-
   const iw = logoImage.width;
   const ih = logoImage.height;
 
@@ -589,7 +553,27 @@ function getLogoScaledSize(){
   return { w, h, s };
 }
 
-function drawLogoInFooter(W, footerTop, footerH){
+/* mode "stack": logo en haut à droite (pas centré) */
+function drawLogoInFooterStacked(W, footerTop){
+  if (!logoImage) return null;
+  const { w, h } = getLogoScaledSize();
+  const x = W - LOGO.padX - w;
+  const y = Math.round(footerTop + SERIES_FOOT.stackTopPad + LOGO.yBias);
+
+  activeCtx.save();
+  activeCtx.shadowColor = "rgba(0,0,0,0)";
+  activeCtx.shadowBlur = 0;
+  activeCtx.shadowOffsetX = 0;
+  activeCtx.shadowOffsetY = 0;
+  activeCtx.globalAlpha = LOGO.opacity;
+  activeCtx.drawImage(logoImage, x, y, w, h);
+  activeCtx.restore();
+
+  return { x, y, w, h };
+}
+
+/* mode normal: logo centré */
+function drawLogoInFooterCentered(W, footerTop, footerH){
   if (!logoImage) return null;
   const { w, h } = getLogoScaledSize();
 
@@ -606,7 +590,6 @@ function drawLogoInFooter(W, footerTop, footerH){
   activeCtx.shadowBlur = 0;
   activeCtx.shadowOffsetX = 0;
   activeCtx.shadowOffsetY = 0;
-
   activeCtx.globalAlpha = LOGO.opacity;
   activeCtx.drawImage(logoImage, x, y, w, h);
   activeCtx.restore();
@@ -615,7 +598,7 @@ function drawLogoInFooter(W, footerTop, footerH){
 }
 
 /* =========================
-   NOTE GLOBALE (auto episodes)
+   NOTE GLOBALE
 ========================= */
 function parseSeriesScoreInput(){
   const raw = (seriesScoreEl?.value || "").trim();
@@ -625,7 +608,6 @@ function parseSeriesScoreInput(){
   return clamp(v, MIN_SCORE, MAX_SCORE);
 }
 
-// Override optionnel: si vide => auto
 function parseEpisodesOverride(){
   const raw = (seriesEpisodesOverrideEl?.value || "").trim();
   if (!raw) return null;
@@ -635,14 +617,12 @@ function parseEpisodesOverride(){
   return Math.floor(n);
 }
 
-// Auto: compte toutes les cases non-null (nombres + "X"), donc épisodes existants
 function computeEpisodesAuto(rows){
   let c = 0;
   for (const r of rows){
     if (!r) continue;
     for (const v of r){
-      if (v == null) continue; // NA / vide
-      // "X" compte aussi (épisode connu, note inconnue)
+      if (v == null) continue;
       c++;
     }
   }
@@ -679,22 +659,60 @@ function drawStarIcon(x, y, size, color){
   activeCtx.restore();
 }
 
-// Affiche: ⭐ 9.5 (X episodes)
-// - si logo présent: sous le logo, aligné à droite du logo
-// - sinon: dans le footer, aligné à droite (marge LOGO.padX)
-function drawSeriesScoreFooter(W, footerTop, footerH, logoRectOrNull, rows){
+/* mesure pour dimensionner footer correctement */
+function measureSeriesScoreBlock(rows){
   const score = parseSeriesScoreInput();
-  if (score == null) return;
+  if (score == null) return null;
 
   const override = parseEpisodesOverride();
   const autoEp = computeEpisodesAuto(rows);
   const ep = (override != null) ? override : (autoEp != null ? autoEp : "X");
 
   const mainText = formatScore(Math.round(score * 10) / 10);
-  const metaText = ` (${ep} episodes)`;
+  const metaText = ` \u200A(${ep} episodes)`;
+
+  activeCtx.save();
+  activeCtx.font = L.fontSeriesScore;
+  const mMain = activeCtx.measureText(mainText);
+  const ascent = mMain.actualBoundingBoxAscent || 18;
+  const descent = mMain.actualBoundingBoxDescent || 6;
+  const lineH = ascent + descent;
+
+  activeCtx.font = L.fontSeriesMeta;
+  const mMeta = activeCtx.measureText(metaText);
 
   const starSize = SERIES_FOOT.starSize;
   const gap = SERIES_FOOT.gap;
+
+  const totalW = starSize + gap + mMain.width + mMeta.width;
+  const totalH = Math.max(starSize, lineH);
+
+  activeCtx.restore();
+
+  return { mainText, metaText, totalW, totalH, ascent, mMainW: mMain.width };
+}
+
+/* dessine note en footer (X jamais lié au logo) */
+function drawSeriesScoreFooter(W, footerTop, footerH, logoRectOrNull, rows){
+  const m = measureSeriesScoreBlock(rows);
+  if (!m) return;
+
+  const anchorRight = (W - LOGO.padX); // ✅ indépendant du logo
+
+  let topY;
+  if (logoRectOrNull){
+    topY = logoRectOrNull.y + logoRectOrNull.h + SERIES_FOOT.gapUnderLogo;
+  } else {
+    topY = footerTop + Math.round((footerH - m.totalH) / 2);
+  }
+
+  topY = clamp(topY, footerTop + SERIES_FOOT.padY, footerTop + footerH - m.totalH - SERIES_FOOT.padY);
+  const xLeft = clamp(anchorRight - m.totalW, 12, W - 12 - m.totalW);
+
+  const starY = topY + Math.round((m.totalH - SERIES_FOOT.starSize) / 2) - 3;
+  const baselineY = topY + m.ascent;
+
+  drawStarIcon(px(xLeft), px(starY), SERIES_FOOT.starSize, "orange");
 
   activeCtx.save();
   activeCtx.shadowColor = "rgba(0,0,0,0)";
@@ -702,49 +720,15 @@ function drawSeriesScoreFooter(W, footerTop, footerH, logoRectOrNull, rows){
   activeCtx.shadowOffsetX = 0;
   activeCtx.shadowOffsetY = 0;
 
-  // mesures
-  activeCtx.font = L.fontSeriesScore;
-  const mMain = activeCtx.measureText(mainText);
-  const ascent = mMain.actualBoundingBoxAscent || 34;
-  const descent = mMain.actualBoundingBoxDescent || 10;
-  const lineH = ascent + descent;
-
-  activeCtx.font = L.fontSeriesMeta;
-  const mMeta = activeCtx.measureText(metaText);
-
-  const totalW = starSize + gap + mMain.width + mMeta.width;
-  const totalH = Math.max(starSize, lineH);
-
-  const anchorRight = logoRectOrNull ? (logoRectOrNull.x + logoRectOrNull.w) : (W - LOGO.padX);
-
-  let topY;
-  if (logoRectOrNull){
-    topY = logoRectOrNull.y + logoRectOrNull.h + SERIES_FOOT.gapUnderLogo;
-  } else {
-    topY = footerTop + Math.round((footerH - totalH) / 2);
-  }
-
-  topY = clamp(topY, footerTop + SERIES_FOOT.padY, footerTop + footerH - totalH - SERIES_FOOT.padY);
-  const xLeft = clamp(anchorRight - totalW, 12, W - 12 - totalW);
-
-  // positions
-  const starY = topY + Math.round((totalH - starSize) / 2);
-  const baselineY = topY + ascent;
-
-  // star
-  drawStarIcon(px(xLeft), px(starY), starSize, "orange");
-
-  // main
   activeCtx.font = L.fontSeriesScore;
   activeCtx.fillStyle = "rgba(255,255,255,.95)";
   activeCtx.textAlign = "left";
   activeCtx.textBaseline = "alphabetic";
-  activeCtx.fillText(mainText, px(xLeft + starSize + gap), px(baselineY));
+  activeCtx.fillText(m.mainText, px(xLeft + SERIES_FOOT.starSize + SERIES_FOOT.gap), px(baselineY));
 
-  // meta
   activeCtx.font = L.fontSeriesMeta;
   activeCtx.fillStyle = "rgba(255,255,255,.55)";
-  activeCtx.fillText(metaText, px(xLeft + starSize + gap + mMain.width), px(baselineY));
+  activeCtx.fillText(m.metaText, px(xLeft + SERIES_FOOT.starSize + SERIES_FOOT.gap + m.mMainW), px(baselineY));
 
   activeCtx.restore();
 }
@@ -771,17 +755,11 @@ function computeSeasonAverages(seasons, rows){
 
   for (let s=0; s<S; s++){
     const colRaw = rows.map(r => (r && s < r.length) ? r[s] : null);
-
     const nums = colRaw.filter(v => typeof v === "number" && !Number.isNaN(v));
     const hasUnknown = colRaw.some(v => v === "X");
     const a = nums.length ? (nums.reduce((p,c)=>p+c,0) / nums.length) : null;
 
-    out.push({
-      title: seasons[s] || `S${s+1}`,
-      avg: a,
-      idx: s,
-      hasUnknown
-    });
+    out.push({ title: seasons[s] || `S${s+1}`, avg: a, idx: s, hasUnknown });
   }
   return out;
 }
@@ -884,9 +862,9 @@ function drawSeasonCard(x, y, w, h, item, minScore, maxScore){
   activeCtx.restore();
 }
 
-/* Card logo inline : logo pur */
+/* logo dans carte "filler" + retourne rect complet */
 function drawLogoCardInline(x, y, w, h){
-  if (!logoImage) return;
+  if (!logoImage) return null;
 
   const { w: lw, h: lh } = getLogoScaledSize();
 
@@ -908,6 +886,50 @@ function drawLogoCardInline(x, y, w, h){
   activeCtx.globalAlpha = LOGO.opacity;
   activeCtx.drawImage(logoImage, dx, dy, lw, lh);
   activeCtx.restore();
+
+  return { x: dx, y: dy, w: lw, h: lh, cardX: x, cardY: y, cardW: w, cardH: h, padX };
+}
+
+/* note sous logo dans la carte filler, X indépendant du logo */
+function drawSeriesScoreUnderInlineLogo(logoRect, rows){
+  const m = measureSeriesScoreBlock(rows);
+  if (!m || !logoRect) return false;
+
+  // place dispo
+  const available = (logoRect.cardY + logoRect.cardH) - (logoRect.y + logoRect.h) - SERIES_FOOT.padY;
+  const need = SERIES_FOOT.gapUnderLogo + m.totalH;
+  if (available < need) return false; // => fallback footer
+
+  const anchorRight = (logoRect.cardX + logoRect.cardW - logoRect.padX); // ✅ indépendant du logo (ancré carte)
+  let topY = logoRect.y + logoRect.h + SERIES_FOOT.gapUnderLogo;
+  topY = clamp(topY, logoRect.cardY + SERIES_FOOT.padY, logoRect.cardY + logoRect.cardH - m.totalH - SERIES_FOOT.padY);
+
+  const xLeft = clamp(anchorRight - m.totalW, logoRect.cardX + 12, logoRect.cardX + logoRect.cardW - 12 - m.totalW);
+
+  const starY = topY + Math.round((m.totalH - SERIES_FOOT.starSize) / 2) - 3;
+  const baselineY = topY + m.ascent;
+
+  drawStarIcon(px(xLeft), px(starY), SERIES_FOOT.starSize, "orange");
+
+  activeCtx.save();
+  activeCtx.shadowColor = "rgba(0,0,0,0)";
+  activeCtx.shadowBlur = 0;
+  activeCtx.shadowOffsetX = 0;
+  activeCtx.shadowOffsetY = 0;
+
+  activeCtx.font = L.fontSeriesScore;
+  activeCtx.fillStyle = "rgba(255,255,255,.95)";
+  activeCtx.textAlign = "left";
+  activeCtx.textBaseline = "alphabetic";
+  activeCtx.fillText(m.mainText, px(xLeft + SERIES_FOOT.starSize + SERIES_FOOT.gap), px(baselineY));
+
+  activeCtx.font = L.fontSeriesMeta;
+  activeCtx.fillStyle = "rgba(255,255,255,.55)";
+  activeCtx.fillText(m.metaText, px(xLeft + SERIES_FOOT.starSize + SERIES_FOOT.gap + m.mMainW), px(baselineY));
+
+  activeCtx.restore();
+
+  return true;
 }
 
 function renderSeasonalMode(seasons, rows, minScore, maxScore){
@@ -926,33 +948,50 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
 
   let items = computeSeasonAverages(seasons, rows);
 
+  const hasSeriesScore = (parseSeriesScoreInput() != null);
   const useInlineLogoFiller = (cols === 2) && (items.length % 2 === 1) && !!logoImage;
   if (useInlineLogoFiller){
     items = [...items, { type: "logo" }];
   }
 
   const useFooterLogo = !!logoImage && !useInlineLogoFiller;
-  const hasSeriesScore = (parseSeriesScoreInput() != null);
 
   const rowsCount = Math.ceil(items.length / cols);
   const cardsBlockH = (rowsCount * cardH) + (Math.max(0, rowsCount - 1) * gap);
 
-  // footer si logo en footer OU note globale
-  const useFooter = useFooterLogo || hasSeriesScore;
+  // footer si: logo footer, ou note globale, ou fallback (note ne rentre pas dans filler)
+  let needFooter = useFooterLogo || hasSeriesScore;
 
-  const { h: logoH } = getLogoScaledSize();
-  const footerH = useFooter
-    ? Math.max(FOOTER.minH, (useFooterLogo ? (logoH + 110) : 120))
-    : 0;
+  // dimension footer dynamiquement
+  let footerH = 0;
+  if (needFooter){
+    const m = hasSeriesScore ? measureSeriesScoreBlock(rows) : null;
+    const { h: logoH } = getLogoScaledSize();
 
-  const footerGap = useFooter ? 16 : 0;
+    if (useFooterLogo && hasSeriesScore && m){
+      // stack: logo top + note dessous
+      footerH = Math.max(
+        FOOTER.minH,
+        SERIES_FOOT.stackTopPad + logoH + SERIES_FOOT.gapUnderLogo + m.totalH + SERIES_FOOT.padY
+      );
+    } else if (useFooterLogo){
+      footerH = Math.max(FOOTER.minH, logoH + SERIES_FOOT.padY*2);
+    } else if (hasSeriesScore && m){
+      footerH = Math.max(FOOTER.minH, m.totalH + SERIES_FOOT.padY*2);
+    } else {
+      footerH = FOOTER.minH;
+    }
+  }
 
+  const footerGap = needFooter ? 6 : 0; // ✅ réduit
   const Hneeded = pad + cardsBlockH + footerGap + footerH + pad;
   activeCanvas.height = Math.max(Math.ceil(Hneeded), 420);
 
   const H = activeCanvas.height;
   activeCtx.clearRect(0,0,W,H);
   drawBackground(W,H);
+
+  let fillerHadNote = false;
 
   for (let i=0; i<items.length; i++){
     const r = Math.floor(i / cols);
@@ -963,17 +1002,34 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
     const item = items[i];
 
     if (item && item.type === "logo"){
-      drawLogoCardInline(x, y, cardW, cardH);
+      const lr = drawLogoCardInline(x, y, cardW, cardH);
+      if (hasSeriesScore){
+        fillerHadNote = drawSeriesScoreUnderInlineLogo(lr, rows);
+        if (!fillerHadNote){
+          // si ça rentre pas, on laissera la note en footer
+          needFooter = true;
+        }
+      }
       continue;
     }
 
     drawSeasonCard(x, y, cardW, cardH, item, minScore, maxScore);
   }
 
-  if (useFooter){
+  if (needFooter){
     const footerTop = pad + cardsBlockH + footerGap;
-    const logoRect = useFooterLogo ? drawLogoInFooter(W, footerTop, footerH) : null;
-    drawSeriesScoreFooter(W, footerTop, footerH, logoRect, rows);
+
+    const hasScore = (parseSeriesScoreInput() != null);
+    const stack = !!logoImage && hasScore && useFooterLogo;
+
+    const logoRect = stack
+      ? drawLogoInFooterStacked(W, footerTop)
+      : (useFooterLogo ? drawLogoInFooterCentered(W, footerTop, footerH) : null);
+
+    // si la note est déjà dessinée dans la carte filler, ne pas la redessiner en footer
+    if (!(useInlineLogoFiller && fillerHadNote)){
+      drawSeriesScoreFooter(W, footerTop, footerH, logoRect, rows);
+    }
   }
 }
 
@@ -1005,13 +1061,25 @@ function renderGridMode(seasons, rows, minScore, maxScore){
   const hasSeriesScore = (parseSeriesScoreInput() != null);
   const needFooter = !!logoImage || hasSeriesScore;
 
+  // footer height dynamique (logo + note = stack)
+  const m = hasSeriesScore ? measureSeriesScoreBlock(rows) : null;
   const { h: logoH } = getLogoScaledSize();
-  const footerH = needFooter
-    ? Math.max(FOOTER.minH, (logoImage ? (logoH + 110) : 120))
-    : FOOTER.minH;
+
+  let footerH = FOOTER.minH;
+  if (needFooter){
+    if (logoImage && hasSeriesScore && m){
+      footerH = Math.max(
+        FOOTER.minH,
+        SERIES_FOOT.stackTopPad + logoH + SERIES_FOOT.gapUnderLogo + m.totalH + SERIES_FOOT.padY
+      );
+    } else if (logoImage){
+      footerH = Math.max(FOOTER.minH, logoH + SERIES_FOOT.padY*2);
+    } else if (hasSeriesScore && m){
+      footerH = Math.max(FOOTER.minH, m.totalH + SERIES_FOOT.padY*2);
+    }
+  }
 
   const footerTop = avgY + AVG.blockH + FOOTER.gapFromAvg;
-
   const Hneeded = footerTop + footerH + L.pad;
   activeCanvas.height = Math.max(Math.ceil(Hneeded), 420);
 
@@ -1102,7 +1170,11 @@ function renderGridMode(seasons, rows, minScore, maxScore){
     }
   }
 
-  const logoRect = logoImage ? drawLogoInFooter(W, footerTop, footerH) : null;
+  const stack = !!logoImage && hasSeriesScore;
+  const logoRect = stack
+    ? drawLogoInFooterStacked(W, footerTop)
+    : (logoImage ? drawLogoInFooterCentered(W, footerTop, footerH) : null);
+
   drawSeriesScoreFooter(W, footerTop, footerH, logoRect, rows);
 }
 
@@ -1202,7 +1274,6 @@ function fileToImage(file){
    EVENTS
 ========================= */
 csvEl.addEventListener("input", render);
-
 seriesScoreEl.addEventListener("input", render);
 seriesScoreEl.addEventListener("change", render);
 seriesEpisodesOverrideEl.addEventListener("input", render);
@@ -1215,9 +1286,7 @@ modeBtn.addEventListener("click", () => {
   render();
 });
 
-cardBgPickBtn.addEventListener("click", () => {
-  cardBgFile.click();
-});
+cardBgPickBtn.addEventListener("click", () => { cardBgFile.click(); });
 
 cardBgFile.addEventListener("change", async (e) => {
   const f = e.target.files?.[0];
