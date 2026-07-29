@@ -176,6 +176,50 @@
       font-size:16px;
     }
 
+    .imdb-loader{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid var(--border);
+}
+
+.imdb-loader input[type="text"]{
+  min-height:var(--tap);
+  width:180px;
+  box-sizing:border-box;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  padding:7px 10px;
+  outline:none;
+  font:650 16px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+}
+
+.imdb-loader button:disabled{
+  cursor:default;
+  opacity:.55;
+  transform:none;
+}
+
+.imdb-status{
+  flex-basis:100%;
+  width:100%;
+  min-height:18px;
+  margin:0;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:650;
+  line-height:1.35;
+}
+
+.imdb-status[data-error="true"]{
+  color:#ff8b8b;
+}
+
     canvas{
       width:100%;
       height:auto;
@@ -305,9 +349,38 @@
 
     <div class="legend" id="legend"></div>
 
+<div class="imdb-loader">
+  <label for="imdbSeriesId">IMDb series</label>
+
+  <input
+    id="imdbSeriesId"
+    type="text"
+    placeholder="tt0903747"
+    autocomplete="off"
+    autocapitalize="none"
+    spellcheck="false"
+  />
+
+  <select id="imdbOutputMode" aria-label="IMDb import mode">
+    <option value="N">IMDb ratings</option>
+    <option value="E">Empty template</option>
+  </select>
+
+  <button id="fetchImdbBtn" type="button">
+    Fetch episodes
+  </button>
+
+  <p
+    id="imdbStatus"
+    class="imdb-status"
+    role="status"
+    aria-live="polite"
+  ></p>
+</div>
+
     <p class="hint">
-      1ère ligne = saisons ; lignes suivantes = notes des épisodes ; vide/NA = case vide ; X = "?".
-      En mode cartes, tu choisis la saison dans le menu puis tu uploades 1 image pour CE bloc.
+      1st line = seasons ; followings lines = episodes ratings ; empty/NA = no episode ; X = "?".
+      In card mode, select any season in the menu and upload a background image for the corresponding bloc.
     </p>
 
     <textarea id="csv">S1,S2,S3,S4,S5
@@ -414,6 +487,21 @@ const EXPORT_SCALE = 3;
 
 const csvEl = document.getElementById("csv");
 const legendEl = document.getElementById("legend");
+
+/* =========================
+   IMDb / OMDb
+========================= */
+
+/*
+  Browser-side API keys are visible to visitors.
+  Use an OMDb key intended for this public client.
+*/
+const OMDB_API_KEY = "368c56c8";
+
+const imdbSeriesIdEl = document.getElementById("imdbSeriesId");
+const imdbOutputModeEl = document.getElementById("imdbOutputMode");
+const fetchImdbBtn = document.getElementById("fetchImdbBtn");
+const imdbStatusEl = document.getElementById("imdbStatus");
 
 const modeBtn = document.getElementById("modeBtn");
 let seasonalMode = false;
@@ -1290,8 +1378,415 @@ function fileToImage(file){
 }
 
 /* =========================
+   IMDb / OMDb IMPORT
+========================= */
+
+function setImdbStatus(message, isError = false){
+  imdbStatusEl.textContent = message;
+  imdbStatusEl.dataset.error = String(isError);
+}
+
+function extractImdbId(value){
+  const match = String(value)
+    .trim()
+    .match(/\btt\d{7,}\b/i);
+
+  if (!match){
+    throw new Error(
+      "Enter a valid IMDb series ID, for example tt0903747."
+    );
+  }
+
+  return match[0].toLowerCase();
+}
+
+async function omdbRequest(parameters){
+  if (
+    !OMDB_API_KEY ||
+    OMDB_API_KEY === "PUT_YOUR_OMDB_API_KEY_HERE"
+  ){
+    throw new Error(
+      "Add your OMDb API key to OMDB_API_KEY."
+    );
+  }
+
+  const url = new URL("https://www.omdbapi.com/");
+  url.searchParams.set("apikey", OMDB_API_KEY);
+
+  for (const [key, value] of Object.entries(parameters)){
+    if (value !== undefined && value !== null){
+      url.searchParams.set(key, String(value));
+    }
+  }
+
+  let response;
+
+  try{
+    response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Accept: "application/json"
+      }
+    });
+  }catch(error){
+    throw new Error(
+      "Could not connect to OMDb. Check your connection and API key."
+    );
+  }
+
+  if (!response.ok){
+    throw new Error(
+      `OMDb request failed with HTTP status ${response.status}.`
+    );
+  }
+
+  let data;
+
+  try{
+    data = await response.json();
+  }catch(error){
+    throw new Error(
+      "OMDb returned an invalid JSON response."
+    );
+  }
+
+  if (!data || data.Response === "False"){
+    throw new Error(
+      data?.Error || "OMDb returned no data."
+    );
+  }
+
+  return data;
+}
+
+function normalizeOmdbRating(value){
+  if (typeof value !== "string"){
+    return null;
+  }
+
+  const normalized = value.trim();
+
+  if (
+    normalized === "" ||
+    normalized.toUpperCase() === "N/A"
+  ){
+    return null;
+  }
+
+  const rating = Number.parseFloat(normalized);
+
+  if (
+    !Number.isFinite(rating) ||
+    rating < MIN_SCORE ||
+    rating > MAX_SCORE
+  ){
+    return null;
+  }
+
+  return rating.toFixed(1);
+}
+
+function buildOmdbMatrix(seasons, mode){
+  const processedSeasons = seasons
+    .map(season => {
+      const episodes = Array.isArray(season.episodes)
+        ? season.episodes
+            .map(episode => {
+              const episodeNumber = Number.parseInt(
+                episode.Episode,
+                10
+              );
+
+              if (
+                !Number.isInteger(episodeNumber) ||
+                episodeNumber < 1
+              ){
+                return null;
+              }
+
+              return {
+                episodeNumber,
+                rating: normalizeOmdbRating(
+                  episode.imdbRating
+                )
+              };
+            })
+            .filter(Boolean)
+            .sort(
+              (a, b) =>
+                a.episodeNumber - b.episodeNumber
+            )
+        : [];
+
+      return {
+        seasonNumber: season.seasonNumber,
+        episodes
+      };
+    })
+    .filter(
+      season =>
+        Number.isInteger(season.seasonNumber) &&
+        season.episodes.length > 0
+    )
+    .sort(
+      (a, b) =>
+        a.seasonNumber - b.seasonNumber
+    );
+
+  if (processedSeasons.length === 0){
+    throw new Error(
+      "OMDb returned no numbered episodes for this series."
+    );
+  }
+
+  const maximumEpisodeNumber = Math.max(
+    ...processedSeasons.flatMap(
+      season =>
+        season.episodes.map(
+          episode => episode.episodeNumber
+        )
+    )
+  );
+
+  const episodeMaps = processedSeasons.map(
+    season =>
+      new Map(
+        season.episodes.map(
+          episode => [
+            episode.episodeNumber,
+            episode
+          ]
+        )
+      )
+  );
+
+  const lines = [
+    processedSeasons
+      .map(
+        season => `S${season.seasonNumber}`
+      )
+      .join(",")
+  ];
+
+  for (
+    let episodeNumber = 1;
+    episodeNumber <= maximumEpisodeNumber;
+    episodeNumber += 1
+  ){
+    const row = processedSeasons.map(
+      (season, seasonIndex) => {
+        const episode = episodeMaps[
+          seasonIndex
+        ].get(episodeNumber);
+
+        /*
+          No episode exists at this position.
+          Your parser converts NA into an empty cell.
+        */
+        if (!episode){
+          return "NA";
+        }
+
+        /*
+          Empty-template mode deliberately displays
+          question marks for existing episodes.
+        */
+        if (mode === "E"){
+          return "X";
+        }
+
+        /*
+          The episode exists, but OMDb did not provide
+          a usable rating. Keep it empty rather than
+          displaying a false "unknown" question mark.
+        */
+        return episode.rating ?? "NA";
+      }
+    );
+
+    lines.push(row.join(","));
+  }
+
+  return lines.join("\n");
+}
+
+async function fetchSeriesFromOmdb(){
+  if (fetchImdbBtn.disabled){
+    return;
+  }
+
+  const previousButtonText =
+    fetchImdbBtn.textContent;
+
+  try{
+    fetchImdbBtn.disabled = true;
+    fetchImdbBtn.textContent = "Fetching…";
+
+    setImdbStatus("Checking the series…");
+
+    const imdbId = extractImdbId(
+      imdbSeriesIdEl.value
+    );
+
+    const mode =
+      imdbOutputModeEl.value === "E"
+        ? "E"
+        : "N";
+
+    const series = await omdbRequest({
+      i: imdbId,
+      plot: "short"
+    });
+
+    if (
+      typeof series.Type === "string" &&
+      !["series", "episode"].includes(
+        series.Type.toLowerCase()
+      )
+    ){
+      throw new Error(
+        "The IMDb ID does not appear to belong to a television series."
+      );
+    }
+
+    const totalSeasons = Number.parseInt(
+      series.totalSeasons,
+      10
+    );
+
+    if (
+      !Number.isInteger(totalSeasons) ||
+      totalSeasons < 1
+    ){
+      throw new Error(
+        "OMDb did not return a valid season count for this title."
+      );
+    }
+
+    const seasons = [];
+    const failedSeasons = [];
+
+    for (
+      let seasonNumber = 1;
+      seasonNumber <= totalSeasons;
+      seasonNumber += 1
+    ){
+      setImdbStatus(
+        `Fetching season ${seasonNumber} of ${totalSeasons}…`
+      );
+
+      try{
+        const seasonData = await omdbRequest({
+          i: imdbId,
+          Season: seasonNumber
+        });
+
+        const episodes =
+          Array.isArray(seasonData.Episodes)
+            ? seasonData.Episodes
+            : [];
+
+        if (episodes.length === 0){
+          failedSeasons.push(seasonNumber);
+          continue;
+        }
+
+        seasons.push({
+          seasonNumber,
+          episodes
+        });
+      }catch(error){
+        failedSeasons.push(seasonNumber);
+
+        console.warn(
+          `Could not load season ${seasonNumber}:`,
+          error
+        );
+      }
+    }
+
+    if (seasons.length === 0){
+      throw new Error(
+        "OMDb did not return any usable seasons."
+      );
+    }
+
+    const output = buildOmdbMatrix(
+      seasons,
+      mode
+    );
+
+    /*
+      This is the correct integration point for
+      the rest of your application.
+    */
+    csvEl.value = output;
+
+    /*
+      Programmatically setting textarea.value does
+      not fire an input event, so render() must be
+      called explicitly.
+    */
+    render();
+
+    const loadedEpisodeCount = seasons.reduce(
+      (total, season) =>
+        total + season.episodes.length,
+      0
+    );
+
+    let message =
+      `Loaded ${series.Title || imdbId}: ` +
+      `${seasons.length} season` +
+      `${seasons.length === 1 ? "" : "s"}, ` +
+      `${loadedEpisodeCount} episode` +
+      `${loadedEpisodeCount === 1 ? "" : "s"}.`;
+
+    if (failedSeasons.length > 0){
+      message +=
+        ` Could not load season` +
+        `${failedSeasons.length === 1 ? "" : "s"} ` +
+        `${failedSeasons.join(", ")}.`;
+    }
+
+    setImdbStatus(message);
+  }catch(error){
+    console.error(
+      "IMDb/OMDb import failed:",
+      error
+    );
+
+    setImdbStatus(
+      error instanceof Error
+        ? error.message
+        : "An unexpected import error occurred.",
+      true
+    );
+  }finally{
+    fetchImdbBtn.disabled = false;
+    fetchImdbBtn.textContent =
+      previousButtonText || "Fetch episodes";
+  }
+}
+
+/* =========================
    EVENTS
 ========================= */
+fetchImdbBtn.addEventListener(
+  "click",
+  fetchSeriesFromOmdb
+);
+
+imdbSeriesIdEl.addEventListener(
+  "keydown",
+  event => {
+    if (event.key === "Enter"){
+      event.preventDefault();
+      fetchSeriesFromOmdb();
+    }
+  }
+);
+
 csvEl.addEventListener("input", render);
 seriesScoreEl.addEventListener("input", render);
 seriesScoreEl.addEventListener("change", render);
