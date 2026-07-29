@@ -1580,27 +1580,26 @@ function buildOmdbMatrix(seasons, mode){
         ].get(episodeNumber);
 
         /*
-          No episode exists at this position.
-          Your parser converts NA into an empty cell.
-        */
-        if (!episode){
-          return "NA";
-        }
+  No episode exists at this position in this season.
+  Leave the CSV cell empty.
+*/
+if (!episode){
+  return "";
+}
 
-        /*
-          Empty-template mode deliberately displays
-          question marks for existing episodes.
-        */
-        if (mode === "E"){
-          return "X";
-        }
+/*
+  Empty-template mode marks every existing episode
+  as unknown.
+*/
+if (mode === "E"){
+  return "X";
+}
 
-        /*
-          The episode exists, but OMDb did not provide
-          a usable rating. Keep it empty rather than
-          displaying a false "unknown" question mark.
-        */
-        return episode.rating ?? "NA";
+/*
+  The episode exists, but OMDb has no rating.
+  Display it as an unknown episode.
+*/
+return episode.rating ?? "X";
       }
     );
 
