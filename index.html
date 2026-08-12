@@ -307,24 +307,54 @@
 <div class="wrap">
   <div class="ui" id="ui">
     <div class="row">
-      <div class="left">
-        <div class="switch">
-          <span>Card mode</span>
-          <button id="modeBtn" class="toggle" type="button" role="switch" aria-checked="false" title="Toggle seasonal/film cards view">
-            <span class="thumb"></span>
-          </button>
-        </div>
+<div class="left">
+  <div class="switch">
+    <span>Card mode</span>
+    <button
+      id="modeBtn"
+      class="toggle"
+      type="button"
+      role="switch"
+      aria-checked="false"
+      title="Toggle seasonal/film cards view"
+    >
+      <span class="thumb"></span>
+    </button>
+  </div>
 
-        <label id="cardBgLabel" class="hidden">Card
-          <select id="cardBgSeason"></select>
-        </label>
-        <button id="cardBgPickBtn" type="button" class="hidden">Card BG</button>
-        <button id="cardBgClearOneBtn" type="button" class="ghost hidden">Clear</button>
-        <button id="cardBgClearAllBtn" type="button" class="ghost hidden">Clear all</button>
-        <input id="cardBgFile" type="file" accept="image/*" class="hidden" />
+  <label>Graph
+    <select id="graphModeSelect">
+      <option value="off">Off</option>
+      <option value="episodic">Episodic</option>
+      <option value="seasonal">Seasonal</option>
+    </select>
+  </label>
 
-        <button id="exportBtn" type="button">Export PNG</button>
-      </div>
+  <div class="switch hidden" id="trendlineControl">
+    <span>Trendline</span>
+    <button
+      id="trendlineBtn"
+      class="toggle"
+      type="button"
+      role="switch"
+      aria-checked="true"
+      title="Show/hide graph trendline"
+    >
+      <span class="thumb"></span>
+    </button>
+  </div>
+
+  <label id="cardBgLabel" class="hidden">Card
+    <select id="cardBgSeason"></select>
+  </label>
+
+  <button id="cardBgPickBtn" type="button" class="hidden">Card BG</button>
+  <button id="cardBgClearOneBtn" type="button" class="ghost hidden">Clear</button>
+  <button id="cardBgClearAllBtn" type="button" class="ghost hidden">Clear all</button>
+  <input id="cardBgFile" type="file" accept="image/*" class="hidden" />
+
+  <button id="exportBtn" type="button">Export PNG</button>
+</div>
 
       <div class="right">
         <label>Background
@@ -506,6 +536,39 @@ const imdbStatusEl = document.getElementById("imdbStatus");
 const modeBtn = document.getElementById("modeBtn");
 let seasonalMode = false;
 
+const graphModeSelect = document.getElementById("graphModeSelect");
+const trendlineControl = document.getElementById("trendlineControl");
+const trendlineBtn = document.getElementById("trendlineBtn");
+
+let graphMode = "off";
+let graphTrendline = true;
+
+const GRAPH = {
+  W: 900,
+  H: 470,
+
+  left: 62,
+  right: 52,
+  top: 42,
+  bottom: 72,
+
+  gridColor: "rgba(255,255,255,.22)",
+  axisColor: "rgba(255,255,255,.38)",
+  labelColor: "rgba(255,255,255,.86)",
+  rawLineColor: "rgba(255,255,255,.52)",
+  trendColor: "rgba(255,255,255,.92)",
+  rawLineWidth: 1.7,
+  trendWidth: 3,
+  dotR: 5,
+  seasonDotR: 8.5,
+  seasonBand: "rgba(255,255,255,.075)"
+};
+
+const GRAPH_FOOTER = {
+  gapAbove: 10,
+  minH: 82
+};
+
 const exportBtn = document.getElementById("exportBtn");
 
 const bgFile = document.getElementById("bgFile");
@@ -621,6 +684,23 @@ function drawBackground(W,H){
     activeCtx.fillStyle = "rgba(0,0,0,.35)";
     activeCtx.fillRect(0,0,W,H);
   }
+
+  activeCtx.restore();
+}
+
+function drawGraphBackground(W, H){
+  // On conserve exactement ton fond existant
+  drawBackground(W, H);
+
+  /*
+    Éclaircissement spécifique aux graphiques.
+    Cela évite l’aspect presque noir du fond actuel,
+    sans modifier Grid mode ou Card mode.
+  */
+  activeCtx.save();
+
+  activeCtx.fillStyle = "rgba(255,255,255,.065)";
+  activeCtx.fillRect(0, 0, W, H);
 
   activeCtx.restore();
 }
@@ -1287,6 +1367,848 @@ function renderGridMode(seasons, rows, minScore, maxScore){
 }
 
 /* =========================
+   GRAPH MODE
+========================= */
+function graphNumericValue(raw){
+  if (typeof raw === "number" && Number.isFinite(raw)){
+    return clamp(raw, MIN_SCORE, MAX_SCORE);
+  }
+  return null;
+}
+
+function buildEpisodeTimeline(seasons, rows){
+  const points = [];
+  const spans = [];
+
+  for (let s = 0; s < seasons.length; s++){
+    const start = points.length;
+
+    for (let e = 0; e < rows.length; e++){
+      const raw =
+        rows[e] && s < rows[e].length
+          ? rows[e][s]
+          : null;
+
+      // null / NA = aucun épisode à cet emplacement.
+      if (raw == null) continue;
+
+      points.push({
+        seasonIndex: s,
+        episodeIndex: e,
+        season: seasons[s] || `S${s + 1}`,
+        episode: e + 1,
+        raw,
+        value: graphNumericValue(raw)
+      });
+    }
+
+    const end = points.length - 1;
+
+    if (end >= start){
+      spans.push({
+        seasonIndex: s,
+        season: seasons[s] || `S${s + 1}`,
+        start,
+        end
+      });
+    }
+  }
+
+  return { points, spans };
+}
+
+function computeGraphYDomain(values){
+  const nums = values.filter(
+    v => typeof v === "number" && Number.isFinite(v)
+  );
+
+  if (!nums.length){
+    return { min: 6, max: 10, step: 1 };
+  }
+
+  const lowest = Math.min(...nums);
+
+  /*
+    Le graphe de référence garde généralement une fenêtre
+    assez lisible autour des notes réellement utilisées.
+    On descend sous 6 uniquement si les données l’exigent.
+  */
+  let min = Math.min(Math.floor(lowest), 6);
+  min = clamp(min, MIN_SCORE, 9);
+
+  const max = 10;
+  const span = max - min;
+  const step = span > 6 ? 2 : 1;
+
+  return { min, max, step };
+}
+
+function makeGraphScales(count, yDomain){
+  const plotW = GRAPH.W - GRAPH.left - GRAPH.right;
+  const plotH = GRAPH.H - GRAPH.top - GRAPH.bottom;
+
+  const x = index => {
+    if (count <= 1){
+      return GRAPH.left + plotW / 2;
+    }
+    return GRAPH.left + (index / (count - 1)) * plotW;
+  };
+
+  const y = value => {
+    const t =
+      (value - yDomain.min) /
+      (yDomain.max - yDomain.min || 1);
+
+    return GRAPH.top + (1 - t) * plotH;
+  };
+
+  return { x, y, plotW, plotH };
+}
+
+function drawGraphBase(yDomain){
+  const plotRight = GRAPH.W - GRAPH.right;
+  const plotBottom = GRAPH.H - GRAPH.bottom;
+
+  activeCtx.save();
+
+  activeCtx.font =
+    "600 11px -apple-system,system-ui,Segoe UI,Roboto,Arial";
+
+  activeCtx.textAlign = "right";
+  activeCtx.textBaseline = "middle";
+
+  for (
+    let value = Math.ceil(yDomain.min);
+    value <= yDomain.max;
+    value += yDomain.step
+  ){
+    const t =
+      (value - yDomain.min) /
+      (yDomain.max - yDomain.min || 1);
+
+    const yy =
+      GRAPH.top +
+      (1 - t) *
+        (GRAPH.H - GRAPH.top - GRAPH.bottom);
+
+    activeCtx.beginPath();
+    activeCtx.moveTo(GRAPH.left, yy);
+    activeCtx.lineTo(plotRight, yy);
+    activeCtx.strokeStyle = GRAPH.gridColor;
+    activeCtx.lineWidth = 1;
+    activeCtx.setLineDash([4, 4]);
+    activeCtx.stroke();
+
+    activeCtx.setLineDash([]);
+    activeCtx.fillStyle = GRAPH.labelColor;
+    activeCtx.fillText(
+      String(value),
+      GRAPH.left - 8,
+      yy
+    );
+  }
+
+  activeCtx.beginPath();
+  activeCtx.moveTo(GRAPH.left, GRAPH.top);
+  activeCtx.lineTo(GRAPH.left, plotBottom);
+  activeCtx.lineTo(plotRight, plotBottom);
+
+  activeCtx.strokeStyle = GRAPH.axisColor;
+  activeCtx.lineWidth = 1;
+  activeCtx.stroke();
+
+  activeCtx.restore();
+}
+
+function drawSeasonBandsAndLabels(spans, xScale, pointCount){
+  if (!spans.length || !pointCount) return;
+
+  const plotBottom = GRAPH.H - GRAPH.bottom;
+  const plotH = plotBottom - GRAPH.top;
+
+  activeCtx.save();
+
+  spans.forEach((span, idx) => {
+    const firstX = xScale(span.start);
+    const lastX = xScale(span.end);
+
+    let left =
+      span.start === 0
+        ? GRAPH.left
+        : (xScale(span.start - 1) + firstX) / 2;
+
+    let right =
+      span.end === pointCount - 1
+        ? GRAPH.W - GRAPH.right
+        : (lastX + xScale(span.end + 1)) / 2;
+
+    if (idx % 2 === 1){
+      activeCtx.fillStyle = GRAPH.seasonBand;
+      activeCtx.fillRect(
+        left,
+        GRAPH.top,
+        Math.max(0, right - left),
+        plotH
+      );
+    }
+
+    const center = (left + right) / 2;
+
+    activeCtx.font =
+      "600 11px -apple-system,system-ui,Segoe UI,Roboto,Arial";
+    activeCtx.textAlign = "center";
+    activeCtx.textBaseline = "top";
+    activeCtx.fillStyle = GRAPH.labelColor;
+
+    activeCtx.fillText(
+      span.season,
+      center,
+      plotBottom + 9
+    );
+  });
+
+  activeCtx.restore();
+}
+
+function splitNumericSegments(points){
+  const segments = [];
+  let current = [];
+
+  for (const point of points){
+    if (
+      point &&
+      typeof point.y === "number" &&
+      Number.isFinite(point.y)
+    ){
+      current.push(point);
+    } else {
+      if (current.length){
+        segments.push(current);
+        current = [];
+      }
+    }
+  }
+
+  if (current.length){
+    segments.push(current);
+  }
+
+  return segments;
+}
+
+function drawSmoothPath(points, strokeStyle, lineWidth, opacity = 1){
+  if (!points || points.length < 2) return;
+
+  activeCtx.save();
+  activeCtx.strokeStyle = strokeStyle;
+  activeCtx.lineWidth = lineWidth;
+  activeCtx.globalAlpha = opacity;
+  activeCtx.lineCap = "round";
+  activeCtx.lineJoin = "round";
+
+  activeCtx.beginPath();
+  activeCtx.moveTo(points[0].x, points[0].y);
+
+  if (points.length === 2){
+    activeCtx.lineTo(points[1].x, points[1].y);
+  } else {
+    /*
+      Catmull-Rom -> Bézier cubique.
+      Cela reproduit le comportement visuel du SVG de référence
+      sans dépendance externe comme D3.
+    */
+    for (let i = 0; i < points.length - 1; i++){
+      const p0 = points[i - 1] || points[i];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[i + 2] || p2;
+
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+      activeCtx.bezierCurveTo(
+        cp1x,
+        cp1y,
+        cp2x,
+        cp2y,
+        p2.x,
+        p2.y
+      );
+    }
+  }
+
+  activeCtx.stroke();
+  activeCtx.restore();
+}
+
+function gaussianTrend(values, radius = 3, sigma = 1.65){
+  /*
+    L’algorithme exact du site source n’est pas disponible dans
+    le HTML rendu. Cette version utilise un lissage gaussien
+    centré, adapté aux séries de notes épisodiques.
+
+    - les épisodes X sont ignorés dans le calcul ;
+    - leur position temporelle reste conservée ;
+    - le résultat est nettement plus stable qu’une simple
+      moyenne mobile rectangulaire.
+  */
+  const out = new Array(values.length).fill(null);
+
+  for (let i = 0; i < values.length; i++){
+    let weighted = 0;
+    let totalWeight = 0;
+
+    for (
+      let j = Math.max(0, i - radius);
+      j <= Math.min(values.length - 1, i + radius);
+      j++
+    ){
+      const v = values[j];
+
+      if (
+        typeof v !== "number" ||
+        !Number.isFinite(v)
+      ){
+        continue;
+      }
+
+      const d = j - i;
+      const w =
+        Math.exp(
+          -(d * d) /
+          (2 * sigma * sigma)
+        );
+
+      weighted += v * w;
+      totalWeight += w;
+    }
+
+    if (totalWeight > 0){
+      out[i] = weighted / totalWeight;
+    }
+  }
+
+  return out;
+}
+
+function drawEpisodeDots(points, scales){
+  activeCtx.save();
+
+  for (let i = 0; i < points.length; i++){
+    const point = points[i];
+
+    if (
+      typeof point.value !== "number" ||
+      !Number.isFinite(point.value)
+    ){
+      continue;
+    }
+
+    const x = scales.x(i);
+    const y = scales.y(point.value);
+    const bucket = pickBucket(
+      point.value,
+      MIN_SCORE,
+      MAX_SCORE
+    );
+
+    activeCtx.beginPath();
+    activeCtx.arc(
+      x,
+      y,
+      GRAPH.dotR,
+      0,
+      Math.PI * 2
+    );
+
+    activeCtx.fillStyle = bucket.color;
+    activeCtx.fill();
+
+    activeCtx.strokeStyle = "rgba(0,0,0,.75)";
+    activeCtx.lineWidth = 1.5;
+    activeCtx.stroke();
+  }
+
+  activeCtx.restore();
+}
+
+function renderEpisodicGraph(seasons, rows){
+  activeCanvas.width = GRAPH.W;
+
+  const graphHasFooter =
+    !!logoImage ||
+    parseSeriesScoreInput() != null;
+
+  let graphFooterH = 0;
+
+  if (graphHasFooter){
+    const scoreMetrics =
+      measureSeriesScoreBlock(rows);
+
+    const { h: logoH } =
+      getLogoScaledSize();
+
+    if (logoImage && scoreMetrics){
+      graphFooterH = Math.max(
+        GRAPH_FOOTER.minH,
+        SERIES_FOOT.stackTopPad +
+        logoH +
+        SERIES_FOOT.gapUnderLogo +
+        scoreMetrics.totalH +
+        SERIES_FOOT.padY
+      );
+
+    } else if (logoImage){
+      graphFooterH = Math.max(
+        GRAPH_FOOTER.minH,
+        logoH + SERIES_FOOT.padY * 2
+      );
+
+    } else if (scoreMetrics){
+      graphFooterH = Math.max(
+        GRAPH_FOOTER.minH,
+        scoreMetrics.totalH +
+        SERIES_FOOT.padY * 2
+      );
+    }
+  }
+
+  activeCanvas.height =
+    GRAPH.H +
+    (graphHasFooter
+      ? GRAPH_FOOTER.gapAbove
+      : 0) +
+    graphFooterH;
+
+  activeCtx.clearRect(
+    0,
+    0,
+    activeCanvas.width,
+    activeCanvas.height
+  );
+
+  drawGraphBackground(
+    activeCanvas.width,
+    activeCanvas.height
+  );
+
+  const { points, spans } =
+    buildEpisodeTimeline(seasons, rows);
+
+  const values =
+    points.map(p => p.value);
+
+  const yDomain =
+    computeGraphYDomain(values);
+
+  const scales =
+    makeGraphScales(
+      points.length,
+      yDomain
+    );
+
+  /* zones et labels des saisons */
+  drawSeasonBandsAndLabels(
+    spans,
+    scales.x,
+    points.length
+  );
+
+  /* axes + grille */
+  drawGraphBase(yDomain);
+
+  /* =========================
+     LIGNE ÉPISODES
+  ========================= */
+
+  const rawCanvasPoints =
+    points.map(
+      (point, index) =>
+        point.value == null
+          ? null
+          : {
+              x: scales.x(index),
+              y: scales.y(point.value)
+            }
+    );
+
+  for (
+    const segment of
+    splitNumericSegments(rawCanvasPoints)
+  ){
+    drawSmoothPath(
+      segment,
+      GRAPH.rawLineColor,
+      GRAPH.rawLineWidth,
+      1
+    );
+  }
+
+  /* points individuels */
+  drawEpisodeDots(
+    points,
+    scales
+  );
+
+  /* =========================
+     TRENDLINE
+  ========================= */
+
+  if (
+    graphTrendline &&
+    points.length > 1
+  ){
+    const smoothed =
+      gaussianTrend(values);
+
+    const trendPoints =
+      smoothed.map(
+        (value, index) =>
+          value == null
+            ? null
+            : {
+                x: scales.x(index),
+                y: scales.y(value)
+              }
+      );
+
+    for (
+      const segment of
+      splitNumericSegments(trendPoints)
+    ){
+      drawSmoothPath(
+        segment,
+        GRAPH.trendColor,
+        GRAPH.trendWidth,
+        0.72
+      );
+    }
+  }
+
+  /* =========================
+     FOOTER
+  ========================= */
+
+  drawGraphSeriesFooter(rows);
+}
+
+function renderSeasonalGraph(seasons, rows){
+activeCanvas.width = GRAPH.W;
+
+const graphHasFooter =
+  !!logoImage ||
+  parseSeriesScoreInput() != null;
+
+let graphFooterH = 0;
+
+if (graphHasFooter){
+  const scoreMetrics =
+    measureSeriesScoreBlock(rows);
+
+  const { h: logoH } =
+    getLogoScaledSize();
+
+  if (logoImage && scoreMetrics){
+    graphFooterH = Math.max(
+      GRAPH_FOOTER.minH,
+      SERIES_FOOT.stackTopPad +
+      logoH +
+      SERIES_FOOT.gapUnderLogo +
+      scoreMetrics.totalH +
+      SERIES_FOOT.padY
+    );
+  } else if (logoImage){
+    graphFooterH = Math.max(
+      GRAPH_FOOTER.minH,
+      logoH + SERIES_FOOT.padY * 2
+    );
+  } else if (scoreMetrics){
+    graphFooterH = Math.max(
+      GRAPH_FOOTER.minH,
+      scoreMetrics.totalH +
+      SERIES_FOOT.padY * 2
+    );
+  }
+}
+
+activeCanvas.height =
+  GRAPH.H +
+  (graphHasFooter ? GRAPH_FOOTER.gapAbove : 0) +
+  graphFooterH;
+
+  activeCtx.clearRect(
+    0,
+    0,
+    activeCanvas.width,
+    activeCanvas.height
+  );
+
+drawGraphBackground(
+  activeCanvas.width,
+  activeCanvas.height
+);
+
+  const items = computeSeasonAverages(
+    seasons,
+    rows
+  ).filter(
+    item =>
+      typeof item.avg === "number" &&
+      Number.isFinite(item.avg)
+  );
+
+  const values = items.map(item => item.avg);
+
+  const yDomain = computeGraphYDomain(values);
+
+  const scales = makeGraphScales(
+    items.length,
+    yDomain
+  );
+
+  drawGraphBase(yDomain);
+
+  const plotBottom = GRAPH.H - GRAPH.bottom;
+
+  /* =========================
+     LABELS S1 / S2 / S3...
+  ========================= */
+
+  activeCtx.save();
+
+  activeCtx.font =
+    "600 11px -apple-system,system-ui,Segoe UI,Roboto,Arial";
+
+  activeCtx.textAlign = "center";
+  activeCtx.textBaseline = "top";
+  activeCtx.fillStyle = GRAPH.labelColor;
+
+  items.forEach((item, index) => {
+    activeCtx.fillText(
+      item.title,
+      scales.x(index),
+      plotBottom + 9
+    );
+  });
+
+  activeCtx.restore();
+
+
+  /* =========================
+     LIGNE NORMALE ENTRE SAISONS
+  ========================= */
+
+  const rawPoints = items.map(
+    (item, index) => ({
+      x: scales.x(index),
+      y: scales.y(item.avg)
+    })
+  );
+
+  if (rawPoints.length > 1){
+    drawSmoothPath(
+      rawPoints,
+      GRAPH.rawLineColor,
+      GRAPH.rawLineWidth,
+      1
+    );
+  }
+
+
+  /* =========================
+     TRENDLINE
+  ========================= */
+
+  if (graphTrendline && values.length > 1){
+
+    /*
+      Rayon dynamique pour éviter que la trendline
+      disparaisse sur les séries avec peu de saisons.
+    */
+    let trendValues;
+
+    if (values.length === 2){
+      trendValues = [...values];
+
+    } else if (values.length === 3){
+      trendValues = gaussianTrend(
+        values,
+        1,
+        1.15
+      );
+
+    } else if (values.length <= 6){
+      trendValues = gaussianTrend(
+        values,
+        1,
+        1.25
+      );
+
+    } else {
+      trendValues = gaussianTrend(
+        values,
+        2,
+        1.5
+      );
+    }
+
+    const trendPoints = trendValues.map(
+      (value, index) => ({
+        x: scales.x(index),
+        y: scales.y(value)
+      })
+    );
+
+    drawSmoothPath(
+      trendPoints,
+      GRAPH.trendColor,
+      GRAPH.trendWidth,
+      0.72
+    );
+  }
+
+
+  /* =========================
+     POINTS + NOTES
+  ========================= */
+
+  activeCtx.save();
+
+  items.forEach((item, index) => {
+
+    const shown =
+      Math.round(item.avg * 10) / 10;
+
+    const bucket = pickBucket(
+      shown,
+      MIN_SCORE,
+      MAX_SCORE
+    );
+
+    const x = scales.x(index);
+    const y = scales.y(shown);
+
+
+    /* POINT */
+
+    activeCtx.beginPath();
+
+    activeCtx.arc(
+      x,
+      y,
+      GRAPH.seasonDotR,
+      0,
+      Math.PI * 2
+    );
+
+    activeCtx.fillStyle = bucket.color;
+    activeCtx.fill();
+
+    activeCtx.strokeStyle =
+      "rgba(0,0,0,.75)";
+
+    activeCtx.lineWidth = 2;
+    activeCtx.stroke();
+
+
+    /* NOTE */
+
+    activeCtx.font =
+      "700 13px -apple-system,system-ui,Segoe UI,Roboto,Arial";
+
+    activeCtx.textAlign = "center";
+    activeCtx.textBaseline = "bottom";
+
+    activeCtx.fillStyle = bucket.color;
+
+    activeCtx.shadowColor =
+      "rgba(0,0,0,.95)";
+
+    activeCtx.shadowBlur = 4;
+
+    activeCtx.fillText(
+      formatScore(shown),
+      x,
+      y - 13
+    );
+
+    activeCtx.shadowBlur = 0;
+  });
+
+  activeCtx.restore();
+
+
+/* Logo + note globale sous le graphique */
+
+drawGraphSeriesFooter(rows);
+}
+
+/* =========================
+   GRAPH FOOTER
+========================= */
+function drawGraphSeriesFooter(rows){
+  const hasScore =
+    parseSeriesScoreInput() != null;
+  const hasLogo =
+    !!logoImage;
+  if (!hasScore && !hasLogo){
+    return;
+  }
+
+  const W = activeCanvas.width;
+
+  const footerTop =
+    GRAPH.H +
+    GRAPH_FOOTER.gapAbove;
+
+  const footerH =
+    activeCanvas.height -
+    footerTop;
+
+  const stack =
+    hasLogo && hasScore;
+
+  const logoRect =
+    stack
+      ? drawLogoInFooterStacked(
+          W,
+          footerTop
+        )
+      : hasLogo
+        ? drawLogoInFooterCentered(
+            W,
+            footerTop,
+            footerH
+          )
+        : null;
+
+  drawSeriesScoreFooter(
+    W,
+    footerTop,
+    footerH,
+    logoRect,
+    rows
+  );
+}
+
+function syncGraphUI(){
+  const graphOn = graphMode !== "off";
+
+  trendlineControl.classList.toggle(
+    "hidden",
+    !graphOn
+  );
+
+  trendlineBtn.setAttribute(
+    "aria-checked",
+    graphTrendline ? "true" : "false"
+  );
+}
+
+/* =========================
    UI helpers
 ========================= */
 function syncCardBgUI(){
@@ -1327,7 +2249,13 @@ function render(){
 
   syncSeasonDropdown(seasons);
 
-  if (seasonalMode){
+syncGraphUI();
+
+  if (graphMode === "episodic"){
+    renderEpisodicGraph(seasons, rows);
+  } else if (graphMode === "seasonal"){
+    renderSeasonalGraph(seasons, rows);
+  } else if (seasonalMode){
     renderSeasonalMode(seasons, rows, MIN_SCORE, MAX_SCORE);
   } else {
     renderGridMode(seasons, rows, MIN_SCORE, MAX_SCORE);
@@ -1349,7 +2277,14 @@ function exportPNG(){
   ectx.imageSmoothingQuality = "high";
   ectx.drawImage(src, 0, 0);
 
-  const filename = seasonalMode ? "series_cards.png" : "series_grid.png";
+    const filename =
+    graphMode === "episodic"
+      ? "series_graph_episodic.png"
+      : graphMode === "seasonal"
+        ? "series_graph_seasonal.png"
+        : seasonalMode
+          ? "series_cards.png"
+          : "series_grid.png";
 
   exportCanvas.toBlob((blob) => {
     if (!blob) return;
@@ -1862,8 +2797,33 @@ clearLogoBtn.addEventListener("click", () => {
   render();
 });
 
+graphModeSelect.addEventListener("change", () => {
+  graphMode = graphModeSelect.value;
+
+  if (
+    !["off", "episodic", "seasonal"].includes(graphMode)
+  ){
+    graphMode = "off";
+  }
+
+  syncGraphUI();
+  render();
+});
+
+trendlineBtn.addEventListener("click", () => {
+  graphTrendline = !graphTrendline;
+
+  trendlineBtn.setAttribute(
+    "aria-checked",
+    graphTrendline ? "true" : "false"
+  );
+
+  render();
+});
+
 /* init */
 buildLegend();
 syncCardBgUI();
+syncGraphUI();
 render();
 </script>
