@@ -75,6 +75,82 @@
     .switch{display:flex;align-items:center;gap:10px}
     .switch span{color:var(--muted);font-weight:700;font-size:13px}
 
+    .mode-group{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .mode-primary-row{
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      gap:10px;
+      width:100%;
+    }
+
+    .mode-primary-row #exportBtn{
+      margin-left:0;
+      white-space:nowrap;
+      flex:0 0 auto;
+    }
+
+    .mode-label{
+      color:var(--muted);
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .segmented{
+      display:flex;
+      align-items:center;
+      gap:2px;
+      padding:3px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:rgba(0,0,0,.18);
+    }
+
+    .segmented button{
+      min-height:36px;
+      padding:6px 14px;
+      border:0;
+      border-radius:9px;
+      background:transparent;
+      color:var(--muted);
+      font-size:14px;
+      font-weight:750;
+      transition:background 160ms ease,color 160ms ease;
+    }
+
+    .segmented button:hover{color:var(--text);}
+
+    .segmented button.active{
+      background:rgba(255,255,255,.13);
+      color:#fff;
+    }
+
+    .view-options{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      width:100%;
+      margin-top:2px;
+    }
+
+    .data-section{
+      margin-top:14px;
+      padding-top:14px;
+      border-top:1px solid var(--border);
+    }
+
+    .data-section .legend{
+      margin-top:0;
+      margin-bottom:10px;
+    }
+
     .toggle{
       width:69px;
       height:20px;
@@ -151,6 +227,14 @@
 
     input[type="file"]{color:var(--muted);font-size:13px}
 
+    button,
+    input,
+    select,
+    textarea{
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    }
+
+
     select{
       min-height: var(--tap);
       border-radius:10px;
@@ -186,6 +270,20 @@
   border-top:1px solid var(--border);
 }
 
+
+.series-meta-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  flex-basis:100%;
+  width:100%;
+  padding-bottom:12px;
+  margin-bottom:2px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+
 .imdb-loader input[type="text"]{
   min-height:var(--tap);
   width:180px;
@@ -196,7 +294,7 @@
   color:var(--text);
   padding:7px 10px;
   outline:none;
-  font:650 16px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font:650 16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
 }
 
 .imdb-loader button:disabled{
@@ -298,6 +396,9 @@
 
       .row{flex-direction: column; align-items: stretch; justify-content:flex-start;}
       .left,.right{width:100%; justify-content:flex-start;}
+      .mode-primary-row,.mode-group,.view-options{width:100%;}
+      .segmented{flex:1;}
+      .segmented button{flex:1;}
       .hint{display:none;}
     }
   </style>
@@ -308,52 +409,54 @@
   <div class="ui" id="ui">
     <div class="row">
 <div class="left">
-  <div class="switch">
-    <span>Card mode</span>
-    <button
-      id="modeBtn"
-      class="toggle"
-      type="button"
-      role="switch"
-      aria-checked="false"
-      title="Toggle seasonal/film cards view"
-    >
-      <span class="thumb"></span>
-    </button>
+  <div class="mode-primary-row">
+    <div class="mode-group">
+      <span class="mode-label">Mode</span>
+
+      <div class="segmented" id="modeSelector" role="group" aria-label="Display mode">
+        <button id="gridModeBtn" class="active" type="button" data-mode="grid">Grid</button>
+        <button id="cardModeBtn" type="button" data-mode="cards">Cards</button>
+        <button id="graphModeBtn" type="button" data-mode="graph">Graph</button>
+      </div>
+    </div>
+
+    <button id="exportBtn" type="button">Export PNG</button>
   </div>
 
-  <label>Graph
-    <select id="graphModeSelect">
-      <option value="off">Off</option>
-      <option value="episodic">Episodic</option>
-      <option value="seasonal">Seasonal</option>
-    </select>
-  </label>
+  <div id="graphOptions" class="view-options hidden">
+    <label>View
+      <select id="graphViewSelect">
+        <option value="episodic">Episodic</option>
+        <option value="seasonal">Seasonal</option>
+      </select>
+    </label>
 
-  <div class="switch hidden" id="trendlineControl">
-    <span>Trendline</span>
-    <button
-      id="trendlineBtn"
-      class="toggle"
-      type="button"
-      role="switch"
-      aria-checked="true"
-      title="Show/hide graph trendline"
-    >
-      <span class="thumb"></span>
-    </button>
+    <div class="switch">
+      <span>Trendline</span>
+      <button
+        id="trendlineBtn"
+        class="toggle"
+        type="button"
+        role="switch"
+        aria-checked="true"
+        title="Show/hide graph trendline"
+      >
+        <span class="thumb"></span>
+      </button>
+    </div>
   </div>
 
-  <label id="cardBgLabel" class="hidden">Card
-    <select id="cardBgSeason"></select>
-  </label>
+  <div id="cardOptions" class="view-options hidden">
+    <label>Card
+      <select id="cardBgSeason"></select>
+    </label>
 
-  <button id="cardBgPickBtn" type="button" class="hidden">Card BG</button>
-  <button id="cardBgClearOneBtn" type="button" class="ghost hidden">Clear</button>
-  <button id="cardBgClearAllBtn" type="button" class="ghost hidden">Clear all</button>
-  <input id="cardBgFile" type="file" accept="image/*" class="hidden" />
+    <button id="cardBgPickBtn" type="button">Card BG</button>
+    <button id="cardBgClearOneBtn" type="button" class="ghost">Clear</button>
+    <button id="cardBgClearAllBtn" type="button" class="ghost">Clear all</button>
+    <input id="cardBgFile" type="file" accept="image/*" class="hidden" />
+  </div>
 
-  <button id="exportBtn" type="button">Export PNG</button>
 </div>
 
       <div class="right">
@@ -366,20 +469,33 @@
           <input id="logoFile" type="file" accept="image/*" />
         </label>
         <button id="clearLogoBtn" class="ghost" type="button">Clear logo</button>
-
-        <label>Note globale
-          <input id="seriesScore" class="smallInput" type="text" inputmode="decimal" placeholder="ex: 9.5" />
-        </label>
-
-        <label>Episodes
-          <input id="seriesEpisodesOverride" class="smallInput" type="text" inputmode="numeric" placeholder="auto" />
-        </label>
       </div>
     </div>
 
-    <div class="legend" id="legend"></div>
-
 <div class="imdb-loader">
+
+  <div class="series-meta-row">
+    <label>Note globale
+      <input
+        id="seriesScore"
+        class="smallInput"
+        type="text"
+        inputmode="decimal"
+        placeholder="ex: 9.5"
+      />
+    </label>
+
+    <label>Episodes
+      <input
+        id="seriesEpisodesOverride"
+        class="smallInput"
+        type="text"
+        inputmode="numeric"
+        placeholder="auto"
+      />
+    </label>
+  </div>
+
   <label for="imdbSeriesId">IMDb series</label>
 
   <input
@@ -413,6 +529,9 @@
       In card mode, select any season in the menu and upload a background image for the corresponding bloc.
     </p>
 
+    <div class="data-section">
+      <div class="legend" id="legend"></div>
+
     <textarea id="csv">S1,S2,S3,S4,S5
 9.3,8.7,8.4,7.1,8.6
 8.3,8.4,8.0,7.1,8.3
@@ -425,6 +544,7 @@
 9.3,9.4,8.7,7.7,8.6
 9.3,8.4,8.5,7.7,8.3
 NA,NA,NA,7.2,NA</textarea>
+    </div>
   </div>
 
   <canvas id="c" width="900" height="1200"></canvas>
@@ -533,14 +653,16 @@ const imdbOutputModeEl = document.getElementById("imdbOutputMode");
 const fetchImdbBtn = document.getElementById("fetchImdbBtn");
 const imdbStatusEl = document.getElementById("imdbStatus");
 
-const modeBtn = document.getElementById("modeBtn");
-let seasonalMode = false;
-
-const graphModeSelect = document.getElementById("graphModeSelect");
-const trendlineControl = document.getElementById("trendlineControl");
+const gridModeBtn = document.getElementById("gridModeBtn");
+const cardModeBtn = document.getElementById("cardModeBtn");
+const graphModeBtn = document.getElementById("graphModeBtn");
+const graphOptions = document.getElementById("graphOptions");
+const cardOptions = document.getElementById("cardOptions");
+const graphViewSelect = document.getElementById("graphViewSelect");
 const trendlineBtn = document.getElementById("trendlineBtn");
 
-let graphMode = "off";
+let displayMode = "grid";
+let graphView = "episodic";
 let graphTrendline = true;
 
 const GRAPH = {
@@ -580,7 +702,6 @@ const clearLogoBtn = document.getElementById("clearLogoBtn");
 const seriesScoreEl = document.getElementById("seriesScore");
 const seriesEpisodesOverrideEl = document.getElementById("seriesEpisodesOverride");
 
-const cardBgLabel = document.getElementById("cardBgLabel");
 const cardBgSeason = document.getElementById("cardBgSeason");
 const cardBgPickBtn = document.getElementById("cardBgPickBtn");
 const cardBgClearOneBtn = document.getElementById("cardBgClearOneBtn");
@@ -2194,12 +2315,28 @@ function drawGraphSeriesFooter(rows){
   );
 }
 
-function syncGraphUI(){
-  const graphOn = graphMode !== "off";
+function syncDisplayUI(){
+  const buttons = [
+    gridModeBtn,
+    cardModeBtn,
+    graphModeBtn
+  ];
 
-  trendlineControl.classList.toggle(
+  for (const button of buttons){
+    button.classList.toggle(
+      "active",
+      button.dataset.mode === displayMode
+    );
+  }
+
+  graphOptions.classList.toggle(
     "hidden",
-    !graphOn
+    displayMode !== "graph"
+  );
+
+  cardOptions.classList.toggle(
+    "hidden",
+    displayMode !== "cards"
   );
 
   trendlineBtn.setAttribute(
@@ -2211,14 +2348,6 @@ function syncGraphUI(){
 /* =========================
    UI helpers
 ========================= */
-function syncCardBgUI(){
-  const on = seasonalMode;
-  cardBgLabel.classList.toggle("hidden", !on);
-  cardBgPickBtn.classList.toggle("hidden", !on);
-  cardBgClearOneBtn.classList.toggle("hidden", !on);
-  cardBgClearAllBtn.classList.toggle("hidden", !on);
-}
-
 function syncSeasonDropdown(seasons){
   const current = cardBgSeason.value;
   cardBgSeason.innerHTML = "";
@@ -2248,14 +2377,15 @@ function render(){
   }
 
   syncSeasonDropdown(seasons);
+  syncDisplayUI();
 
-syncGraphUI();
-
-  if (graphMode === "episodic"){
-    renderEpisodicGraph(seasons, rows);
-  } else if (graphMode === "seasonal"){
-    renderSeasonalGraph(seasons, rows);
-  } else if (seasonalMode){
+  if (displayMode === "graph"){
+    if (graphView === "seasonal"){
+      renderSeasonalGraph(seasons, rows);
+    } else {
+      renderEpisodicGraph(seasons, rows);
+    }
+  } else if (displayMode === "cards"){
     renderSeasonalMode(seasons, rows, MIN_SCORE, MAX_SCORE);
   } else {
     renderGridMode(seasons, rows, MIN_SCORE, MAX_SCORE);
@@ -2277,14 +2407,14 @@ function exportPNG(){
   ectx.imageSmoothingQuality = "high";
   ectx.drawImage(src, 0, 0);
 
-    const filename =
-    graphMode === "episodic"
-      ? "series_graph_episodic.png"
-      : graphMode === "seasonal"
-        ? "series_graph_seasonal.png"
-        : seasonalMode
-          ? "series_cards.png"
-          : "series_grid.png";
+  const filename =
+    displayMode === "graph"
+      ? (graphView === "seasonal"
+          ? "series_graph_seasonal.png"
+          : "series_graph_episodic.png")
+      : displayMode === "cards"
+        ? "series_cards.png"
+        : "series_grid.png";
 
   exportCanvas.toBlob((blob) => {
     if (!blob) return;
@@ -2727,13 +2857,6 @@ seriesScoreEl.addEventListener("change", render);
 seriesEpisodesOverrideEl.addEventListener("input", render);
 seriesEpisodesOverrideEl.addEventListener("change", render);
 
-modeBtn.addEventListener("click", () => {
-  seasonalMode = !seasonalMode;
-  modeBtn.setAttribute("aria-checked", seasonalMode ? "true" : "false");
-  syncCardBgUI();
-  render();
-});
-
 cardBgPickBtn.addEventListener("click", () => { cardBgFile.click(); });
 
 cardBgFile.addEventListener("change", async (e) => {
@@ -2797,33 +2920,39 @@ clearLogoBtn.addEventListener("click", () => {
   render();
 });
 
-graphModeSelect.addEventListener("change", () => {
-  graphMode = graphModeSelect.value;
+gridModeBtn.addEventListener("click", () => {
+  displayMode = "grid";
+  syncDisplayUI();
+  render();
+});
 
-  if (
-    !["off", "episodic", "seasonal"].includes(graphMode)
-  ){
-    graphMode = "off";
-  }
+cardModeBtn.addEventListener("click", () => {
+  displayMode = "cards";
+  syncDisplayUI();
+  render();
+});
 
-  syncGraphUI();
+graphModeBtn.addEventListener("click", () => {
+  displayMode = "graph";
+  syncDisplayUI();
+  render();
+});
+
+graphViewSelect.addEventListener("change", () => {
+  graphView = graphViewSelect.value === "seasonal"
+    ? "seasonal"
+    : "episodic";
   render();
 });
 
 trendlineBtn.addEventListener("click", () => {
   graphTrendline = !graphTrendline;
-
-  trendlineBtn.setAttribute(
-    "aria-checked",
-    graphTrendline ? "true" : "false"
-  );
-
+  syncDisplayUI();
   render();
 });
 
 /* init */
 buildLegend();
-syncCardBgUI();
-syncGraphUI();
+syncDisplayUI();
 render();
 </script>
