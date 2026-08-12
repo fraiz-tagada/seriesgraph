@@ -7,11 +7,18 @@
 
   <style>
     :root{
-      --bg:#070a12;
-      --panel: rgba(255,255,255,.06);
-      --border: rgba(255,255,255,.10);
-      --text: rgba(255,255,255,.92);
-      --muted: rgba(255,255,255,.62);
+      --bg:#05070d;
+      --panel: rgba(255,255,255,.07);
+      --border: rgba(255,255,255,.16);
+      --text: rgba(255,255,255,.94);
+      --muted: rgba(255,255,255,.66);
+
+      --glass-hi: rgba(255,255,255,.15);
+      --glass-mid: rgba(255,255,255,.085);
+      --glass-low: rgba(255,255,255,.045);
+      --glass-stroke: rgba(255,255,255,.18);
+      --glass-shadow: rgba(0,0,0,.28);
+      --accent:#0A84FF;
 
       --tap: 44px;
       --sheetPad: 12px;
@@ -21,25 +28,73 @@
     html,body{
       height:100%;
       margin:0;
-      background:var(--bg);
       color:var(--text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(900px 560px at 18% -8%, rgba(255,255,255,.065), transparent 62%),
+        radial-gradient(760px 520px at 92% 8%, rgba(76,125,210,.07), transparent 64%),
+        linear-gradient(180deg,#101319 0%,#0b0e13 46%,#080a0e 100%);
+      background-attachment:fixed;
     }
 
     .wrap{
       max-width:980px;
       margin:0 auto;
-      padding:16px;
-      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      padding:18px;
+      padding-bottom: calc(18px + env(safe-area-inset-bottom));
     }
 
     .ui{
-      border:1px solid var(--border);
-      background: var(--panel);
-      border-radius: 16px;
-      padding: 12px;
-      margin-bottom: 12px;
-      backdrop-filter: blur(10px);
+      position:relative;
+      overflow:hidden;
+      isolation:isolate;
+
+      border:1px solid rgba(255,255,255,.075);
+      background:rgba(255,255,255,.022);
+
+      border-radius:22px;
+      padding:14px;
+      margin-bottom:14px;
+
+      -webkit-backdrop-filter:
+        blur(40px)
+        saturate(185%)
+        brightness(1.06);
+
+      backdrop-filter:
+        blur(40px)
+        saturate(185%)
+        brightness(1.06);
+
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.09),
+        inset 0 -1px 0 rgba(255,255,255,.012),
+        0 10px 28px rgba(0,0,0,.14);
+    }
+
+    .ui::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      z-index:-1;
+      pointer-events:none;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255,255,255,.075) 0%,
+          rgba(255,255,255,.025) 18%,
+          transparent 42%
+        );
+    }
+
+    .ui::after{
+      content:"";
+      position:absolute;
+      inset:1px;
+      z-index:-1;
+      pointer-events:none;
+      border-radius:21px;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.015);
     }
 
     .row{
@@ -57,20 +112,45 @@
     }
 
     button{
-      min-height: var(--tap);
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      color: var(--text);
-      border-radius: 12px;
-      padding: 8px 10px;
-      font-weight: 700;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-      user-select: none;
+      min-height:var(--tap);
+      border:1px solid rgba(255,255,255,.075);
+      background:rgba(255,255,255,.028);
+      color:var(--text);
+      border-radius:12px;
+      padding:8px 11px;
+      font-weight:700;
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+      touch-action:manipulation;
+      user-select:none;
+
+      -webkit-backdrop-filter:blur(24px) saturate(165%);
+      backdrop-filter:blur(24px) saturate(165%);
+
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.055),
+        0 2px 8px rgba(0,0,0,.07);
+
+      transition:
+        background 140ms ease,
+        border-color 140ms ease,
+        transform 100ms ease;
     }
-    button:active{transform: translateY(1px);}
-    .ghost{background: transparent;}
+
+    button:hover{
+      background:rgba(255,255,255,.05);
+      border-color:rgba(255,255,255,.11);
+    }
+    button:active{
+      transform:translateY(1px) scale(.992);
+      box-shadow:
+        inset 0 1px 4px rgba(0,0,0,.10),
+        0 2px 7px rgba(0,0,0,.10);
+    }
+
+    .ghost{
+      background:rgba(255,255,255,.016);
+    }
 
     .switch{display:flex;align-items:center;gap:10px}
     .switch span{color:var(--muted);font-weight:700;font-size:13px}
@@ -107,9 +187,14 @@
       align-items:center;
       gap:2px;
       padding:3px;
-      border:1px solid var(--border);
-      border-radius:12px;
-      background:rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.065);
+      border-radius:13px;
+      background:rgba(0,0,0,.08);
+
+      -webkit-backdrop-filter:blur(22px) saturate(160%);
+      backdrop-filter:blur(22px) saturate(160%);
+
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
     }
 
     .segmented button{
@@ -127,8 +212,12 @@
     .segmented button:hover{color:var(--text);}
 
     .segmented button.active{
-      background:rgba(255,255,255,.13);
       color:#fff;
+      background:rgba(255,255,255,.095);
+      border-color:rgba(255,255,255,.09);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.05),
+        0 1px 4px rgba(0,0,0,.08);
     }
 
     .view-options{
@@ -142,8 +231,13 @@
 
     .data-section{
       margin-top:14px;
-      padding-top:14px;
-      border-top:1px solid var(--border);
+      padding:12px;
+      border:1px solid rgba(255,255,255,.05);
+      border-radius:16px;
+      background:rgba(255,255,255,.012);
+
+      -webkit-backdrop-filter:blur(28px) saturate(165%);
+      backdrop-filter:blur(28px) saturate(165%);
     }
 
     .data-section .legend{
@@ -164,8 +258,12 @@
     }
 
     .toggle[aria-checked="true"]{
-      background: #0A84FF;
-      border-color: #0A84FF;
+      background:
+        linear-gradient(180deg, rgba(38,155,255,.98), rgba(10,132,255,.90));
+      border-color:rgba(92,177,255,.88);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.28),
+        0 4px 12px rgba(10,132,255,.20);
     }
 
     .thumb{
@@ -204,14 +302,28 @@
     textarea{
       width:100%;
       min-height:140px;
+      box-sizing:border-box;
       border-radius:14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.14);
-      color: var(--text);
+      border:1px solid rgba(255,255,255,.06);
+      background:rgba(0,0,0,.10);
+      color:var(--text);
       padding:12px;
       outline:none;
-      font: 575 15px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      font:575 15px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
       margin-top:10px;
+
+      -webkit-backdrop-filter:blur(18px) saturate(150%);
+      backdrop-filter:blur(18px) saturate(150%);
+
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.018);
+    }
+
+    textarea:focus,
+    .smallInput:focus,
+    .imdb-loader input[type="text"]:focus,
+    select:focus{
+      border-color:rgba(10,132,255,.52);
+      box-shadow:0 0 0 3px rgba(10,132,255,.10);
     }
 
     .hint{color:var(--muted);font-size:13px;line-height:1.35;margin:8px 0 0}
@@ -236,39 +348,57 @@
 
 
     select{
-      min-height: var(--tap);
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      color: var(--text);
+      min-height:var(--tap);
+      border-radius:11px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.022);
+      color:var(--text);
       padding:7px 10px;
       outline:none;
       font-weight:750;
       font-size:16px;
+
+      -webkit-backdrop-filter:blur(22px) saturate(165%);
+      backdrop-filter:blur(22px) saturate(165%);
+
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
     }
 
     .smallInput{
-      min-height: var(--tap);
-      width: 130px;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      color: var(--text);
+      min-height:var(--tap);
+      width:130px;
+      border-radius:11px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.022);
+      color:var(--text);
       padding:7px 10px;
       outline:none;
       font-weight:750;
       font-size:16px;
+
+      -webkit-backdrop-filter:blur(22px) saturate(165%);
+      backdrop-filter:blur(22px) saturate(165%);
+
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
     }
 
     .imdb-loader{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-  margin-top:14px;
-  padding-top:14px;
-  border-top:1px solid var(--border);
-}
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:14px;
+      padding:12px;
+
+      border:1px solid rgba(255,255,255,.055);
+      border-radius:16px;
+      background:rgba(255,255,255,.014);
+
+      -webkit-backdrop-filter:blur(30px) saturate(175%);
+      backdrop-filter:blur(30px) saturate(175%);
+
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.018);
+    }
 
 
 .series-meta-row{
@@ -280,7 +410,7 @@
   width:100%;
   padding-bottom:12px;
   margin-bottom:2px;
-  border-bottom:1px solid rgba(255,255,255,.08);
+  border-bottom:1px solid rgba(255,255,255,.075);
 }
 
 
@@ -288,13 +418,18 @@
   min-height:var(--tap);
   width:180px;
   box-sizing:border-box;
-  border-radius:10px;
-  border:1px solid rgba(255,255,255,.14);
-  background:rgba(255,255,255,.06);
+  border-radius:11px;
+  border:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.022);
   color:var(--text);
   padding:7px 10px;
   outline:none;
   font:650 16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+
+  -webkit-backdrop-filter:blur(22px) saturate(165%);
+  backdrop-filter:blur(22px) saturate(165%);
+
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
 }
 
 .imdb-loader button:disabled{
@@ -321,10 +456,13 @@
     canvas{
       width:100%;
       height:auto;
-      border-radius:18px;
+      border-radius:20px;
       display:block;
       background:#000;
-      touch-action: manipulation;
+      touch-action:manipulation;
+
+      border:1px solid rgba(255,255,255,.055);
+      box-shadow:0 10px 28px rgba(0,0,0,.18);
     }
 
     .hidden{display:none !important;}
@@ -377,12 +515,13 @@
         top: calc(0px + var(--safe-top));
         z-index: 10;
 
-        border:1px solid var(--border);
-        background: var(--panel);
-        border-radius: 16px;
-        padding: 12px;
-        margin-bottom: 12px;
-        backdrop-filter: blur(10px);
+        border:1px solid rgba(255,255,255,.07);
+        background:rgba(255,255,255,.022);
+        border-radius:20px;
+        padding:12px;
+        margin-bottom:12px;
+        -webkit-backdrop-filter:blur(36px) saturate(175%);
+        backdrop-filter:blur(36px) saturate(175%);
       }
 
       canvas{
@@ -401,74 +540,820 @@
       .segmented button{flex:1;}
       .hint{display:none;}
     }
-  </style>
+  
+  /* =========================================================
+     APPLE-INSPIRED LIQUID GLASS — functional layer only
+     Based on Apple's WWDC25 / HIG guidance:
+     glass for controls/navigation, calmer materials for content.
+  ========================================================= */
+
+  :root{
+    --apple-glass-fill: rgba(255,255,255,.055);
+    --apple-glass-fill-hover: rgba(255,255,255,.09);
+    --apple-glass-stroke: rgba(255,255,255,.12);
+    --apple-glass-highlight: rgba(255,255,255,.16);
+    --apple-content-fill: rgba(18,20,25,.70);
+    --apple-content-stroke: rgba(255,255,255,.065);
+    --apple-shadow: 0 10px 34px rgba(0,0,0,.22);
+    --apple-radius-lg: 24px;
+    --apple-radius-md: 18px;
+    --apple-radius-sm: 13px;
+  }
+
+  html,body{
+    background:
+      radial-gradient(900px 500px at 14% -8%, rgba(255,255,255,.085), transparent 62%),
+      radial-gradient(720px 460px at 92% 4%, rgba(91,126,185,.10), transparent 66%),
+      radial-gradient(560px 360px at 50% 108%, rgba(68,95,132,.055), transparent 70%),
+      linear-gradient(180deg,#11151c 0%,#0b0e13 48%,#07090d 100%) !important;
+    background-attachment:fixed !important;
+  }
+
+  .wrap{
+    max-width:980px;
+    padding:18px;
+  }
+
+  /* Main container is NOT itself glass: it is just layout. */
+  .ui{
+    overflow:visible;
+    isolation:auto;
+    padding:0;
+    margin-bottom:16px;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
+    box-shadow:none;
+  }
+
+  .ui::before,
+  .ui::after{
+    display:none;
+  }
+
+  .row{
+    gap:12px;
+    align-items:flex-start;
+  }
+
+  /* Functional Liquid Glass capsules */
+  .mode-primary-row,
+  .view-options,
+  .right{
+    position:relative;
+    border:1px solid var(--apple-glass-stroke);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.035)),
+      rgba(255,255,255,.018);
+    -webkit-backdrop-filter:blur(28px) saturate(165%) brightness(1.05);
+    backdrop-filter:blur(28px) saturate(165%) brightness(1.05);
+    box-shadow:
+      inset 0 1px 0 var(--apple-glass-highlight),
+      inset 0 -1px 0 rgba(255,255,255,.02),
+      var(--apple-shadow);
+  }
+
+  .left{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:9px;
+    flex:1 1 470px;
+    min-width:0;
+  }
+
+  .mode-primary-row{
+    width:auto;
+    min-height:50px;
+    box-sizing:border-box;
+    padding:6px;
+    border-radius:19px;
+  }
+
+  .mode-primary-row::before,
+  .view-options::before,
+  .right::before{
+    content:"";
+    position:absolute;
+    inset:1px;
+    pointer-events:none;
+    border-radius:inherit;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.055), transparent 34%);
+    opacity:.8;
+  }
+
+  .mode-group,
+  .mode-primary-row > #exportBtn,
+  .view-options > *,
+  .right > *{
+    position:relative;
+    z-index:1;
+  }
+
+  .mode-group{
+    gap:7px;
+    flex-wrap:nowrap;
+  }
+
+  .mode-label{
+    padding-left:8px;
+    color:rgba(255,255,255,.70);
+    font-size:12px;
+    letter-spacing:.01em;
+  }
+
+  .segmented{
+    gap:2px;
+    padding:2px;
+    border:0;
+    border-radius:14px;
+    background:rgba(0,0,0,.14);
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+  }
+
+  .segmented button{
+    min-height:36px;
+    padding:6px 15px;
+    border:0;
+    border-radius:12px;
+    background:transparent;
+    box-shadow:none;
+    color:rgba(255,255,255,.62);
+    font-size:14px;
+    font-weight:650;
+  }
+
+  .segmented button:hover{
+    background:rgba(255,255,255,.045);
+    border-color:transparent;
+  }
+
+  .segmented button.active{
+    color:#fff;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.10));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.17),
+      0 2px 8px rgba(0,0,0,.18);
+  }
+
+  #exportBtn{
+    margin-left:2px;
+    min-height:38px;
+    padding-inline:14px;
+    border-radius:13px;
+    border:1px solid rgba(255,255,255,.095);
+    background:rgba(255,255,255,.065);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
+  }
+
+  #exportBtn:hover{
+    background:rgba(255,255,255,.105);
+  }
+
+  .view-options{
+    width:auto;
+    min-height:48px;
+    box-sizing:border-box;
+    margin-top:0;
+    padding:6px 10px;
+    border-radius:17px;
+    gap:14px;
+  }
+
+  .right{
+    flex:1 1 360px;
+    min-width:300px;
+    padding:8px 10px;
+    border-radius:19px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:10px;
+    align-content:flex-start;
+  }
+
+  label{
+    color:rgba(255,255,255,.64);
+    font-size:12px;
+    font-weight:650;
+  }
+
+  /* Glass controls: restrained, almost clear until hovered. */
+  button:not(.toggle):not(.segmented button),
+  select,
+  .smallInput,
+  .imdb-loader input[type="text"]{
+    border:1px solid rgba(255,255,255,.085);
+    background:rgba(255,255,255,.045);
+    color:rgba(255,255,255,.92);
+    border-radius:12px;
+    -webkit-backdrop-filter:blur(18px) saturate(145%);
+    backdrop-filter:blur(18px) saturate(145%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.07),
+      0 1px 5px rgba(0,0,0,.08);
+  }
+
+  button:not(.toggle):not(.segmented button):hover,
+  select:hover{
+    background:rgba(255,255,255,.075);
+    border-color:rgba(255,255,255,.13);
+  }
+
+  select,
+  .smallInput,
+  .imdb-loader input[type="text"]{
+    min-height:40px;
+  }
+
+  input[type="file"]{
+    color:rgba(255,255,255,.66);
+  }
+
+  /* Toggle: closer to current Apple switches, compact and pill-shaped. */
+  .toggle{
+    width:48px;
+    height:28px;
+    min-height:28px;
+    padding:0;
+    border:1px solid rgba(255,255,255,.10);
+    background:rgba(255,255,255,.10);
+    box-shadow:
+      inset 0 1px 2px rgba(0,0,0,.16),
+      inset 0 1px 0 rgba(255,255,255,.055);
+  }
+
+  .thumb{
+    width:24px;
+    height:24px;
+    top:1px;
+    left:2px;
+    transform:none;
+    box-shadow:0 2px 6px rgba(0,0,0,.24);
+  }
+
+  .toggle[aria-checked="true"]{
+    background:#0A84FF;
+    border-color:rgba(66,160,255,.95);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.20),
+      0 2px 8px rgba(10,132,255,.18);
+  }
+
+  .toggle[aria-checked="true"] .thumb{
+    left:21px;
+  }
+
+  /* Content/material layer: intentionally NOT Liquid Glass. */
+  .imdb-loader,
+  .data-section{
+    border:1px solid var(--apple-content-stroke);
+    background:var(--apple-content-fill);
+    -webkit-backdrop-filter:blur(14px) saturate(115%);
+    backdrop-filter:blur(14px) saturate(115%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.025),
+      0 8px 24px rgba(0,0,0,.13);
+  }
+
+  .imdb-loader{
+    margin-top:12px;
+    padding:12px;
+    border-radius:20px;
+  }
+
+  .series-meta-row{
+    border-bottom:1px solid rgba(255,255,255,.06);
+    padding-bottom:11px;
+    margin-bottom:1px;
+  }
+
+  .data-section{
+    margin-top:12px;
+    padding:12px;
+    border-radius:20px;
+  }
+
+  textarea{
+    background:rgba(0,0,0,.19);
+    border:1px solid rgba(255,255,255,.065);
+    border-radius:15px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.02),
+      inset 0 0 18px rgba(0,0,0,.08);
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
+  }
+
+  textarea:focus,
+  .smallInput:focus,
+  .imdb-loader input[type="text"]:focus,
+  select:focus{
+    border-color:rgba(10,132,255,.48);
+    box-shadow:0 0 0 3px rgba(10,132,255,.10);
+  }
+
+  .legend{
+    gap:13px;
+  }
+
+  .leg-item{
+    font-size:12px;
+    font-weight:650;
+    color:rgba(255,255,255,.58);
+  }
+
+  .swatch{
+    width:12px;
+    height:12px;
+    border-radius:4px;
+    border:1px solid rgba(255,255,255,.12);
+  }
+
+  canvas{
+    border-radius:22px;
+    border:1px solid rgba(255,255,255,.055);
+    box-shadow:0 14px 34px rgba(0,0,0,.20);
+  }
+
+  @media (max-width:760px){
+    .wrap{
+      padding:
+        calc(12px + var(--safe-top))
+        calc(12px + var(--safe-right))
+        calc(12px + var(--safe-bottom))
+        calc(12px + var(--safe-left));
+    }
+
+    .ui{
+      position:sticky;
+      top:calc(8px + var(--safe-top));
+      padding:0;
+      border:0;
+      background:transparent;
+      -webkit-backdrop-filter:none;
+      backdrop-filter:none;
+      box-shadow:none;
+    }
+
+    .row{
+      gap:8px;
+    }
+
+    .left,
+    .right{
+      width:100%;
+      min-width:0;
+      flex-basis:auto;
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:10px;
+    }
+
+    .mode-primary-row,
+    .view-options,
+    .right{
+      width:100%;
+      box-sizing:border-box;
+    }
+
+    .mode-primary-row{
+      padding:5px;
+    }
+
+    .mode-group{
+      flex:1;
+      min-width:0;
+    }
+
+    .segmented{
+      flex:1;
+    }
+
+    .segmented button{
+      min-width:0;
+      padding-inline:9px;
+    }
+
+    #exportBtn{
+      flex:0 0 auto;
+    }
+
+    .right{
+      max-height:none;
+    }
+
+    canvas{
+      margin-bottom:calc(14px + var(--safe-bottom));
+    }
+  }
+
+
+  /* =========================================================
+     iOS 26 / Liquid Glass refinement
+     Functional controls float in glass; content stays calmer.
+  ========================================================= */
+
+  :root{
+    --lg-surface: rgba(36,40,49,.22);
+    --lg-surface-strong: rgba(42,46,56,.30);
+    --lg-stroke: rgba(255,255,255,.115);
+    --lg-stroke-soft: rgba(255,255,255,.065);
+    --lg-highlight: rgba(255,255,255,.20);
+    --lg-shadow: 0 10px 28px rgba(0,0,0,.22);
+  }
+
+  html,body{
+    background:
+      radial-gradient(720px 460px at 10% -6%, rgba(138,165,210,.14), transparent 67%),
+      radial-gradient(650px 430px at 98% 2%, rgba(117,91,180,.09), transparent 68%),
+      radial-gradient(780px 540px at 50% 112%, rgba(55,90,135,.07), transparent 70%),
+      linear-gradient(180deg,#11151b 0%,#0b0e13 50%,#080a0e 100%) !important;
+  }
+
+  .top-toolbar-row{
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
+    gap:10px;
+  }
+
+  .top-toolbar-row .left{
+    flex:0 0 auto;
+    min-width:0;
+    display:block;
+  }
+
+  .top-toolbar-row .right{
+    flex:1 1 auto;
+    min-width:0;
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
+    gap:8px;
+    padding:6px;
+  }
+
+  .mode-primary-row,
+  .right,
+  .view-options{
+    --gx:50%;
+    --gy:0%;
+    position:relative;
+    overflow:hidden;
+    isolation:isolate;
+
+    border:1px solid var(--lg-stroke);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.018)),
+      var(--lg-surface);
+
+    -webkit-backdrop-filter:
+      blur(32px)
+      saturate(170%)
+      brightness(1.05);
+
+    backdrop-filter:
+      blur(32px)
+      saturate(170%)
+      brightness(1.05);
+
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.13),
+      inset 0 -1px 0 rgba(255,255,255,.02),
+      var(--lg-shadow);
+  }
+
+  .mode-primary-row::before,
+  .right::before,
+  .view-options::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    border-radius:inherit;
+
+    background:
+      radial-gradient(
+        180px 90px at var(--gx) var(--gy),
+        rgba(255,255,255,.15),
+        rgba(255,255,255,.035) 42%,
+        transparent 72%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.055),
+        transparent 32%
+      );
+
+    opacity:.9;
+    transition:opacity 180ms ease;
+  }
+
+  .mode-primary-row::after,
+  .right::after,
+  .view-options::after{
+    content:"";
+    position:absolute;
+    inset:1px;
+    z-index:-1;
+    pointer-events:none;
+    border-radius:inherit;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.018),
+      inset 0 -12px 30px rgba(0,0,0,.025);
+  }
+
+  .mode-primary-row{
+    min-height:50px;
+    padding:6px;
+    border-radius:20px;
+  }
+
+  .right{
+    min-height:50px;
+    border-radius:20px;
+  }
+
+  .context-toolbar-row{
+    display:flex;
+    width:100%;
+    margin-top:9px;
+  }
+
+  .view-options{
+    width:max-content;
+    max-width:100%;
+    min-height:48px;
+    padding:6px 9px;
+    margin:0;
+    border-radius:18px;
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
+    gap:12px;
+  }
+
+  .mode-group,
+  .mode-primary-row > *,
+  .right > *,
+  .view-options > *{
+    position:relative;
+    z-index:1;
+  }
+
+  .segmented{
+    padding:2px;
+    border-radius:15px;
+    border:1px solid rgba(255,255,255,.04);
+    background:rgba(0,0,0,.115);
+    box-shadow:
+      inset 0 1px 2px rgba(0,0,0,.10),
+      inset 0 1px 0 rgba(255,255,255,.025);
+  }
+
+  .segmented button{
+    min-height:36px;
+    border-radius:13px;
+    padding-inline:15px;
+    color:rgba(255,255,255,.60);
+    background:transparent;
+    box-shadow:none;
+    transform:translateZ(0);
+  }
+
+  .segmented button.active{
+    color:#fff;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.175), rgba(255,255,255,.085));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.16),
+      0 2px 8px rgba(0,0,0,.18);
+  }
+
+  button:not(.toggle),
+  select,
+  .smallInput,
+  .imdb-loader input[type="text"]{
+    border:1px solid rgba(255,255,255,.075);
+    background:rgba(255,255,255,.040);
+    border-radius:13px;
+    -webkit-backdrop-filter:blur(18px) saturate(145%);
+    backdrop-filter:blur(18px) saturate(145%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.055),
+      0 1px 5px rgba(0,0,0,.07);
+  }
+
+  button:not(.toggle):hover,
+  select:hover{
+    background:rgba(255,255,255,.072);
+    border-color:rgba(255,255,255,.115);
+  }
+
+  button:not(.toggle):active{
+    transform:scale(.965);
+    transition-duration:80ms;
+  }
+
+  #exportBtn{
+    min-height:38px;
+    border-radius:14px;
+    background:rgba(255,255,255,.055);
+  }
+
+  /* File inputs: visually quieter, so Background/Logo remain one compact row. */
+  .right label{
+    white-space:nowrap;
+    gap:6px;
+  }
+
+  .right input[type="file"]{
+    max-width:150px;
+    font-size:12px;
+  }
+
+  .right .ghost{
+    min-height:38px;
+    padding-inline:10px;
+  }
+
+  .toggle{
+    width:50px;
+    height:30px;
+    min-height:30px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.085);
+    background:rgba(120,120,128,.24);
+    box-shadow:
+      inset 0 1px 2px rgba(0,0,0,.18),
+      inset 0 1px 0 rgba(255,255,255,.04);
+  }
+
+  .thumb{
+    width:26px;
+    height:26px;
+    top:1px;
+    left:2px;
+    background:#fff;
+    box-shadow:
+      0 2px 7px rgba(0,0,0,.28),
+      inset 0 1px 0 rgba(255,255,255,.75);
+  }
+
+  .toggle[aria-checked="true"]{
+    background:#0A84FF;
+    border-color:rgba(74,166,255,.92);
+  }
+
+  .toggle[aria-checked="true"] .thumb{
+    left:21px;
+  }
+
+  /* Standard-material content layer */
+  .imdb-loader,
+  .data-section{
+    background:rgba(16,18,23,.70);
+    border:1px solid rgba(255,255,255,.055);
+    -webkit-backdrop-filter:blur(16px) saturate(115%);
+    backdrop-filter:blur(16px) saturate(115%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.02),
+      0 7px 20px rgba(0,0,0,.12);
+  }
+
+  .imdb-loader{
+    margin-top:12px;
+    border-radius:20px;
+  }
+
+  .data-section{
+    border-radius:20px;
+  }
+
+  textarea{
+    background:rgba(0,0,0,.16);
+    border-color:rgba(255,255,255,.055);
+  }
+
+  @media (max-width:760px){
+    .top-toolbar-row{
+      flex-wrap:wrap;
+      gap:8px;
+    }
+
+    .top-toolbar-row .left,
+    .top-toolbar-row .right{
+      width:100%;
+      flex:1 1 100%;
+    }
+
+    .top-toolbar-row .right{
+      flex-wrap:wrap;
+    }
+
+    .right input[type="file"]{
+      max-width:135px;
+    }
+
+    .context-toolbar-row{
+      margin-top:8px;
+    }
+
+    .view-options{
+      width:100%;
+      box-sizing:border-box;
+      flex-wrap:wrap;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    button,
+    .thumb,
+    .mode-primary-row::before,
+    .right::before,
+    .view-options::before{
+      transition:none !important;
+    }
+  }
+
+</style>
 </head>
 
 <body>
 <div class="wrap">
   <div class="ui" id="ui">
-    <div class="row">
-<div class="left">
-  <div class="mode-primary-row">
-    <div class="mode-group">
-      <span class="mode-label">Mode</span>
+    <div class="row top-toolbar-row">
+      <div class="left">
+        <div class="mode-primary-row">
+          <div class="mode-group">
+            <span class="mode-label">Mode</span>
 
-      <div class="segmented" id="modeSelector" role="group" aria-label="Display mode">
-        <button id="gridModeBtn" class="active" type="button" data-mode="grid">Grid</button>
-        <button id="cardModeBtn" type="button" data-mode="cards">Cards</button>
-        <button id="graphModeBtn" type="button" data-mode="graph">Graph</button>
+            <div class="segmented" id="modeSelector" role="group" aria-label="Display mode">
+              <button id="gridModeBtn" class="active" type="button" data-mode="grid">Grid</button>
+              <button id="cardModeBtn" type="button" data-mode="cards">Cards</button>
+              <button id="graphModeBtn" type="button" data-mode="graph">Graph</button>
+            </div>
+          </div>
+
+          <button id="exportBtn" type="button">Export PNG</button>
+        </div>
       </div>
-    </div>
-
-    <button id="exportBtn" type="button">Export PNG</button>
-  </div>
-
-  <div id="graphOptions" class="view-options hidden">
-    <label>View
-      <select id="graphViewSelect">
-        <option value="episodic">Episodic</option>
-        <option value="seasonal">Seasonal</option>
-      </select>
-    </label>
-
-    <div class="switch">
-      <span>Trendline</span>
-      <button
-        id="trendlineBtn"
-        class="toggle"
-        type="button"
-        role="switch"
-        aria-checked="true"
-        title="Show/hide graph trendline"
-      >
-        <span class="thumb"></span>
-      </button>
-    </div>
-  </div>
-
-  <div id="cardOptions" class="view-options hidden">
-    <label>Card
-      <select id="cardBgSeason"></select>
-    </label>
-
-    <button id="cardBgPickBtn" type="button">Card BG</button>
-    <button id="cardBgClearOneBtn" type="button" class="ghost">Clear</button>
-    <button id="cardBgClearAllBtn" type="button" class="ghost">Clear all</button>
-    <input id="cardBgFile" type="file" accept="image/*" class="hidden" />
-  </div>
-
-</div>
 
       <div class="right">
         <label>Background
           <input id="bgFile" type="file" accept="image/*" />
         </label>
-        <button id="clearBgBtn" class="ghost" type="button">Clear BG</button>
+        <button id="clearBgBtn" class="ghost" type="button">Clear</button>
 
         <label>Logo
           <input id="logoFile" type="file" accept="image/*" />
         </label>
-        <button id="clearLogoBtn" class="ghost" type="button">Clear logo</button>
+        <button id="clearLogoBtn" class="ghost" type="button">Clear</button>
+      </div>
+    </div>
+
+    <div class="context-toolbar-row">
+      <div id="graphOptions" class="view-options hidden">
+        <label>View
+          <select id="graphViewSelect">
+            <option value="episodic">Episodic</option>
+            <option value="seasonal">Seasonal</option>
+          </select>
+        </label>
+
+        <div class="switch">
+          <span>Trendline</span>
+          <button
+            id="trendlineBtn"
+            class="toggle"
+            type="button"
+            role="switch"
+            aria-checked="true"
+            title="Show/hide graph trendline"
+          >
+            <span class="thumb"></span>
+          </button>
+        </div>
+      </div>
+
+      <div id="cardOptions" class="view-options hidden">
+        <label>Card
+          <select id="cardBgSeason"></select>
+        </label>
+
+        <button id="cardBgPickBtn" type="button">Card BG</button>
+        <button id="cardBgClearOneBtn" type="button" class="ghost">Clear</button>
+        <button id="cardBgClearAllBtn" type="button" class="ghost">Clear all</button>
+        <input id="cardBgFile" type="file" accept="image/*" class="hidden" />
       </div>
     </div>
 
