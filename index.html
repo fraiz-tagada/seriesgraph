@@ -1343,6 +1343,375 @@
     }
   }
 
+
+  /* =========================================================
+     v5 — iPhone Safari background + clearer Liquid Glass
+  ========================================================= */
+
+  /* Neutralize the blue/gray cast on the floating glass. */
+  :root{
+    --lg-surface: rgba(255,255,255,.020);
+    --lg-surface-strong: rgba(255,255,255,.032);
+    --lg-stroke: rgba(255,255,255,.105);
+    --lg-stroke-soft: rgba(255,255,255,.055);
+    --lg-highlight: rgba(255,255,255,.16);
+    --lg-shadow: 0 9px 24px rgba(0,0,0,.18);
+  }
+
+  .mode-primary-row,
+  .right,
+  .view-options{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.040),
+        rgba(255,255,255,.010)
+      ),
+      rgba(255,255,255,.014);
+
+    border-color:rgba(255,255,255,.095);
+
+    -webkit-backdrop-filter:
+      blur(34px)
+      saturate(135%)
+      brightness(1.04);
+
+    backdrop-filter:
+      blur(34px)
+      saturate(135%)
+      brightness(1.04);
+
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.105),
+      inset 0 -1px 0 rgba(255,255,255,.012),
+      0 8px 22px rgba(0,0,0,.16);
+  }
+
+  .mode-primary-row::before,
+  .right::before,
+  .view-options::before{
+    background:
+      radial-gradient(
+        180px 82px at var(--gx) var(--gy),
+        rgba(255,255,255,.115),
+        rgba(255,255,255,.020) 43%,
+        transparent 74%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.040),
+        transparent 30%
+      );
+    opacity:.78;
+  }
+
+  .segmented{
+    background:rgba(0,0,0,.095);
+    border-color:rgba(255,255,255,.032);
+  }
+
+  .segmented button.active{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.145),
+        rgba(255,255,255,.065)
+      );
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.12),
+      0 1px 6px rgba(0,0,0,.14);
+  }
+
+  #exportBtn,
+  .right .ghost{
+    background:rgba(255,255,255,.030);
+  }
+
+  #exportBtn:hover,
+  .right .ghost:hover{
+    background:rgba(255,255,255,.055);
+  }
+
+  /*
+    Safari iOS can visibly split a fixed multi-gradient background
+    when the dynamic browser chrome changes height and backdrop-filter
+    surfaces are composited. Use one stable mobile background instead.
+  */
+  @media (max-width:760px){
+    html{
+      background:#090c11 !important;
+      min-height:100%;
+    }
+
+    body{
+      min-height:100%;
+      background:#090c11 !important;
+      background-image:none !important;
+      background-attachment:scroll !important;
+    }
+
+    .wrap{
+      background:transparent !important;
+    }
+
+    /*
+      Preserve enough local variation INSIDE the glass itself for
+      Liquid Glass highlights without tinting the page blue.
+    */
+    .mode-primary-row,
+    .right,
+    .view-options{
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255,255,255,.043),
+          rgba(255,255,255,.010)
+        ),
+        rgba(255,255,255,.012);
+
+      -webkit-backdrop-filter:
+        blur(30px)
+        saturate(125%)
+        brightness(1.035);
+
+      backdrop-filter:
+        blur(30px)
+        saturate(125%)
+        brightness(1.035);
+
+      border-color:rgba(255,255,255,.09);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.10),
+        0 7px 20px rgba(0,0,0,.16);
+    }
+
+    .mode-primary-row::before,
+    .right::before,
+    .view-options::before{
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255,255,255,.055),
+          rgba(255,255,255,.012) 28%,
+          transparent 58%
+        );
+      opacity:.85;
+    }
+
+    /*
+      Keep content cards on the exact same neutral base so there is
+      no visible color step before the generated image.
+    */
+    .imdb-loader,
+    .data-section{
+      background:rgba(13,15,19,.72);
+      border-color:rgba(255,255,255,.052);
+    }
+
+    canvas{
+      background:#04060c;
+    }
+  }
+
+
+  /* =========================================================
+     v6 — definitive cross-platform background + iOS canvas fix
+  ========================================================= */
+
+  /*
+    One single page color everywhere.
+    This removes the visible two-tone split on macOS and iOS.
+  */
+  html,
+  body{
+    min-height:100%;
+    background:#090c11 !important;
+    background-color:#090c11 !important;
+    background-image:none !important;
+    background-attachment:scroll !important;
+  }
+
+  body::before,
+  body::after{
+    display:none !important;
+  }
+
+  .wrap,
+  .ui{
+    background-color:transparent !important;
+  }
+
+  /*
+    Liquid Glass is produced locally by the control surfaces,
+    not by a colored page gradient.
+  */
+  .mode-primary-row,
+  .right,
+  .view-options{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.042) 0%,
+        rgba(255,255,255,.016) 52%,
+        rgba(255,255,255,.010) 100%
+      ) !important;
+
+    border-color:rgba(255,255,255,.090) !important;
+
+    -webkit-backdrop-filter:
+      blur(30px)
+      saturate(120%)
+      brightness(1.035) !important;
+
+    backdrop-filter:
+      blur(30px)
+      saturate(120%)
+      brightness(1.035) !important;
+
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.105),
+      inset 0 -1px 0 rgba(255,255,255,.012),
+      0 7px 20px rgba(0,0,0,.15) !important;
+  }
+
+  .mode-primary-row::before,
+  .right::before,
+  .view-options::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.060) 0%,
+        rgba(255,255,255,.016) 28%,
+        transparent 60%
+      ) !important;
+    opacity:.82 !important;
+  }
+
+  .segmented{
+    background:rgba(0,0,0,.075) !important;
+    border-color:rgba(255,255,255,.028) !important;
+  }
+
+  .segmented button.active{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.135),
+        rgba(255,255,255,.060)
+      ) !important;
+  }
+
+  #exportBtn,
+  .right .ghost{
+    background:rgba(255,255,255,.025) !important;
+  }
+
+  #exportBtn:hover,
+  .right .ghost:hover{
+    background:rgba(255,255,255,.050) !important;
+  }
+
+  /*
+    Content surfaces remain slightly denser so text stays legible.
+    Their tone is neutral and based on the exact same page background.
+  */
+  .imdb-loader,
+  .data-section{
+    background:rgba(13,15,19,.72) !important;
+    border-color:rgba(255,255,255,.050) !important;
+  }
+
+  /*
+    IMPORTANT FOR SAFARI:
+    do not promote the canvas to its own forced GPU layer.
+    A transformed canvas combined with multiple backdrop-filter surfaces
+    can intermittently render blank on iOS Safari.
+  */
+  canvas{
+    display:block !important;
+    visibility:visible !important;
+    opacity:1 !important;
+
+    position:static !important;
+    z-index:auto !important;
+
+    transform:none !important;
+    translate:none !important;
+    filter:none !important;
+
+    width:100% !important;
+    height:auto !important;
+
+    isolation:auto !important;
+    contain:none !important;
+
+    background:#04060c !important;
+  }
+
+  @media (max-width:760px){
+    /*
+      Entire editor stays in normal document flow.
+      Nothing is fixed/sticky above the generated canvas.
+    */
+    .ui{
+      position:relative !important;
+      inset:auto !important;
+      top:auto !important;
+      right:auto !important;
+      bottom:auto !important;
+      left:auto !important;
+
+      z-index:auto !important;
+
+      width:auto !important;
+      max-width:none !important;
+      max-height:none !important;
+
+      overflow:visible !important;
+      -webkit-overflow-scrolling:auto !important;
+
+      margin-bottom:14px !important;
+
+      -webkit-backdrop-filter:none !important;
+      backdrop-filter:none !important;
+    }
+
+    .wrap{
+      padding:
+        calc(12px + var(--safe-top))
+        calc(12px + var(--safe-right))
+        calc(18px + var(--safe-bottom))
+        calc(12px + var(--safe-left)) !important;
+
+      background:#090c11 !important;
+    }
+
+    .top-toolbar-row,
+    .context-toolbar-row,
+    .imdb-loader,
+    .data-section{
+      position:relative !important;
+      z-index:auto !important;
+    }
+
+    canvas{
+      position:static !important;
+      z-index:auto !important;
+      clear:both !important;
+
+      margin-top:14px !important;
+      margin-bottom:calc(18px + var(--safe-bottom)) !important;
+
+      transform:none !important;
+      -webkit-transform:none !important;
+
+      -webkit-backface-visibility:visible !important;
+      backface-visibility:visible !important;
+
+      will-change:auto !important;
+    }
+  }
+
 </style>
 </head>
 
@@ -1370,12 +1739,12 @@
         <label>Background
           <input id="bgFile" type="file" accept="image/*" />
         </label>
-        <button id="clearBgBtn" class="ghost" type="button">Clear BG</button>
+        <button id="clearBgBtn" class="ghost" type="button">Clear</button>
 
         <label>Logo
           <input id="logoFile" type="file" accept="image/*" />
         </label>
-        <button id="clearLogoBtn" class="ghost" type="button">Clear logo</button>
+        <button id="clearLogoBtn" class="ghost" type="button">Clear</button>
       </div>
     </div>
 
@@ -1467,13 +1836,14 @@
   ></p>
 </div>
 
-    <p class="hint">
+    <div class="data-section">
+      <div class="legend" id="legend"></div>
+
+          <p class="hint">
       1st line = seasons ; followings lines = episodes ratings ; empty/NA = no episode ; X = "?".
       In card mode, select any season in the menu and upload a background image for the corresponding bloc.
     </p>
 
-    <div class="data-section">
-      <div class="legend" id="legend"></div>
 
     <textarea id="csv">S1,S2,S3,S4,S5
 9.3,8.7,8.4,7.1,8.6
