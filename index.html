@@ -2308,6 +2308,29 @@
     </div>
 
     <div class="context-toolbar-row">
+      <div id="gridOptions" class="view-options">
+        <label>View
+          <select id="gridViewSelect">
+            <option value="default">Default</option>
+            <option value="inverted">Inverted</option>
+          </select>
+        </label>
+
+        <div class="switch">
+          <span>Wrapped</span>
+          <button
+            id="gridWrappedBtn"
+            class="toggle"
+            type="button"
+            role="switch"
+            aria-checked="false"
+            title="Toggle wrapped grid view"
+          >
+            <span class="thumb"></span>
+          </button>
+        </div>
+      </div>
+
       <div id="graphOptions" class="view-options hidden">
         <label>View
           <select id="graphViewSelect">
@@ -2499,6 +2522,41 @@ const SERIES_FOOT = {
   stackTopPad: 10,
 };
 
+const WRAPPED = {
+  canvasW: 980,
+
+  padX: 26,
+  padTop: 32,
+  sectionGap: 34,
+
+  titleH: 50,
+  titleToCards: 12,
+
+  cols: 9,
+
+  /* Reference-like tile proportions */
+  cellW: 90,
+  cellH: 78,
+  gapX: 8,
+  gapY: 8,
+  radius: 8,
+
+  /* E-label is intentionally much more prominent */
+  epFont: "600 20px -apple-system,system-ui,Segoe UI,Roboto,Arial",
+
+  /* Large score fills the lower half of the tile */
+  scoreFont: "700 36px -apple-system,system-ui,Segoe UI,Roboto,Arial",
+
+  seasonFont: "800 24px -apple-system,system-ui,Segoe UI,Roboto,Arial",
+  avgFont: "500 18px -apple-system,system-ui,Segoe UI,Roboto,Arial",
+
+  titlePadX: 13,
+  titleBoxH: 44,
+  titleBoxRadius: 7,
+
+  footerGap: 18
+};
+
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d", { alpha: true });
 
@@ -2528,12 +2586,17 @@ const imdbStatusEl = document.getElementById("imdbStatus");
 const gridModeBtn = document.getElementById("gridModeBtn");
 const cardModeBtn = document.getElementById("cardModeBtn");
 const graphModeBtn = document.getElementById("graphModeBtn");
+const gridOptions = document.getElementById("gridOptions");
 const graphOptions = document.getElementById("graphOptions");
 const cardOptions = document.getElementById("cardOptions");
+const gridViewSelect = document.getElementById("gridViewSelect");
+const gridWrappedBtn = document.getElementById("gridWrappedBtn");
 const graphViewSelect = document.getElementById("graphViewSelect");
 const trendlineBtn = document.getElementById("trendlineBtn");
 
 let displayMode = "grid";
+let gridView = "default";
+let gridWrapped = false;
 let graphView = "episodic";
 let graphTrendline = true;
 
@@ -3358,6 +3421,736 @@ function renderGridMode(seasons, rows, minScore, maxScore){
 
   drawSeriesScoreFooter(W, footerTop, footerH, logoRect, rows);
 }
+
+function renderGridInvertedMode(seasons, rows, minScore, maxScore){
+  const S = seasons.length;
+  const E = rows.length;
+
+  /*
+    Inverted layout:
+    - episodes become columns;
+    - seasons become rows;
+    - the canvas grows horizontally with episode count;
+    - season averages are displayed at the right.
+  */
+  const avgRightGap = 42;
+  const avgLabelW = 92;
+  const avgBarW = 7;
+  const rightReserve = avgRightGap + avgLabelW + avgBarW + 26;
+
+  const gridW =
+    (E * L.cellW) +
+    (Math.max(0, E - 1) * L.gapX);
+
+  const gridWidthNeeded =
+    L.pad +
+    L.leftLabelW +
+    gridW +
+    rightReserve +
+    L.pad;
+
+  activeCanvas.width = Math.max(900, Math.ceil(gridWidthNeeded));
+
+  const gridH =
+    (S * L.cellH) +
+    (Math.max(0, S - 1) * L.gapY);
+
+  /*
+    In inverted mode the number of seasons controls vertical size,
+    while episode count controls horizontal size.
+  */
+  const t = clamp((S - 5) / 8, 0, 1);
+  const topExtra = Math.round(
+    FLEX.topMin +
+    (FLEX.topMax - FLEX.topMin) * t
+  );
+
+  const gridTop = L.pad + topExtra;
+  const gridX0 = L.pad + L.leftLabelW;
+  const gridY0 = gridTop + L.topLabelH;
+
+  const avgX =
+    gridX0 +
+    gridW +
+    avgRightGap;
+
+  const hasSeriesScore =
+    parseSeriesScoreInput() != null;
+
+  const needFooter =
+    !!logoImage ||
+    hasSeriesScore;
+
+  const m =
+    hasSeriesScore
+      ? measureSeriesScoreBlock(rows)
+      : null;
+
+  const { h: logoH } =
+    getLogoScaledSize();
+
+  let footerH = FOOTER.minH;
+
+  if (needFooter){
+    if (logoImage && hasSeriesScore && m){
+      footerH = Math.max(
+        FOOTER.minH,
+        SERIES_FOOT.stackTopPad +
+        logoH +
+        SERIES_FOOT.gapUnderLogo +
+        m.totalH +
+        SERIES_FOOT.padY
+      );
+    } else if (logoImage){
+      footerH = Math.max(
+        FOOTER.minH,
+        logoH + SERIES_FOOT.padY * 2
+      );
+    } else if (hasSeriesScore && m){
+      footerH = Math.max(
+        FOOTER.minH,
+        m.totalH + SERIES_FOOT.padY * 2
+      );
+    }
+  }
+
+  const footerTop =
+    gridY0 +
+    gridH +
+    FOOTER.gapFromAvg +
+    14;
+
+  const Hneeded =
+    footerTop +
+    footerH +
+    L.pad;
+
+  activeCanvas.height =
+    Math.max(
+      Math.ceil(Hneeded),
+      420
+    );
+
+  const W = activeCanvas.width;
+  const H = activeCanvas.height;
+
+  activeCtx.clearRect(0, 0, W, H);
+  drawBackground(W, H);
+
+  /* =========================
+     AXIS LABELS
+  ========================= */
+
+  activeCtx.save();
+
+  activeCtx.shadowColor = "rgba(0,0,0,0)";
+  activeCtx.shadowBlur = 0;
+  activeCtx.shadowOffsetX = 0;
+  activeCtx.shadowOffsetY = 0;
+
+  activeCtx.font = L.fontAxis;
+  activeCtx.fillStyle = "#ffffff";
+
+  /* Episodes along the top */
+  activeCtx.textAlign = "center";
+
+  for (let e = 0; e < E; e++){
+    const x =
+      gridX0 +
+      e * (L.cellW + L.gapX) +
+      L.cellW / 2;
+
+    const y =
+      gridTop +
+      L.topLabelH / 2;
+
+    drawTextCentered(
+      "E" + (e + 1),
+      x,
+      y
+    );
+  }
+
+  /* Seasons down the left */
+  activeCtx.textAlign = "left";
+
+  for (let s = 0; s < S; s++){
+    const x = L.pad;
+
+    const y =
+      gridY0 +
+      s * (L.cellH + L.gapY) +
+      L.cellH / 2;
+
+    drawTextCentered(
+      seasons[s] || ("S" + (s + 1)),
+      x,
+      y
+    );
+  }
+
+  /* AVG. header at the right */
+  activeCtx.font = L.fontAvgLabel;
+  activeCtx.fillStyle = "rgba(255,255,255,.82)";
+  activeCtx.textAlign = "left";
+
+  drawTextCentered(
+    "AVG.",
+    avgX,
+    gridTop + L.topLabelH / 2
+  );
+
+  activeCtx.restore();
+
+  /* =========================
+     CELLS
+  ========================= */
+
+  for (let s = 0; s < S; s++){
+    for (let e = 0; e < E; e++){
+      const raw =
+        (rows[e] && s < rows[e].length)
+          ? rows[e][s]
+          : null;
+
+      if (raw == null) continue;
+
+      const isUnknown =
+        raw === "X";
+
+      const bucket =
+        isUnknown
+          ? unknown
+          : pickBucket(
+              raw,
+              minScore,
+              maxScore
+            );
+
+      const x =
+        gridX0 +
+        e * (L.cellW + L.gapX);
+
+      const y =
+        gridY0 +
+        s * (L.cellH + L.gapY);
+
+      activeCtx.fillStyle =
+        bucket.color;
+
+      roundRectPath(
+        x,
+        y,
+        L.cellW,
+        L.cellH,
+        L.r
+      );
+
+      activeCtx.fill();
+
+      activeCtx.font =
+        L.fontCell;
+
+      activeCtx.fillStyle =
+        bucket.text;
+
+      activeCtx.textAlign =
+        "center";
+
+      const txt =
+        isUnknown
+          ? "?"
+          : formatScore(Number(raw));
+
+      drawTextCentered(
+        txt,
+        x + L.cellW / 2,
+        y + L.cellH / 2 + 2
+      );
+    }
+  }
+
+  /* =========================
+     SEASON AVERAGES ON RIGHT
+  ========================= */
+
+  for (let s = 0; s < S; s++){
+    const col =
+      rows
+        .map(
+          r =>
+            (r && s < r.length)
+              ? r[s]
+              : null
+        )
+        .filter(v => v !== "X");
+
+    const a = avg(col);
+
+    if (a == null) continue;
+
+    const shown =
+      Number(a.toFixed(1));
+
+    const rowCenterY =
+      gridY0 +
+      s * (L.cellH + L.gapY) +
+      L.cellH / 2;
+
+    activeCtx.font =
+      L.fontAvg;
+
+    activeCtx.fillStyle =
+      "#ffffff";
+
+    activeCtx.textAlign =
+      "left";
+
+    drawTextCentered(
+      formatScore(shown),
+      avgX,
+      rowCenterY
+    );
+
+    const bucket =
+      pickBucket(
+        shown,
+        minScore,
+        maxScore
+      );
+
+    /*
+      Vertical equivalent of the horizontal average bar
+      used in the default grid.
+    */
+    const barX =
+      avgX +
+      52;
+
+    const barH =
+      Math.max(
+        18,
+        L.cellH - 10
+      );
+
+    const barY =
+      rowCenterY -
+      barH / 2;
+
+    activeCtx.fillStyle =
+      bucket.color;
+
+    roundRectPath(
+      barX,
+      barY,
+      avgBarW,
+      barH,
+      999
+    );
+
+    activeCtx.fill();
+  }
+
+  /* =========================
+     SAME FOOTER / LOGO LOGIC
+     AS DEFAULT GRID
+  ========================= */
+
+  const stack =
+    !!logoImage &&
+    hasSeriesScore;
+
+  const logoRect =
+    stack
+      ? drawLogoInFooterStacked(
+          W,
+          footerTop
+        )
+      : (
+          logoImage
+            ? drawLogoInFooterCentered(
+                W,
+                footerTop,
+                footerH
+              )
+            : null
+        );
+
+  drawSeriesScoreFooter(
+    W,
+    footerTop,
+    footerH,
+    logoRect,
+    rows
+  );
+}
+
+function renderGridWrappedMode(seasons, rows, minScore, maxScore){
+  activeCanvas.width = WRAPPED.canvasW;
+  const W = activeCanvas.width;
+
+  const cols = WRAPPED.cols;
+
+  const sections = [];
+
+  for (let s = 0; s < seasons.length; s++){
+    const episodes = [];
+
+    for (let e = 0; e < rows.length; e++){
+      const raw =
+        (rows[e] && s < rows[e].length)
+          ? rows[e][s]
+          : null;
+
+      if (raw == null) continue;
+
+      episodes.push({
+        episodeIndex: e,
+        raw,
+        value:
+          raw === "X"
+            ? null
+            : Number(raw)
+      });
+    }
+
+    const numericValues =
+      episodes
+        .map(ep => ep.value)
+        .filter(
+          v =>
+            typeof v === "number" &&
+            Number.isFinite(v)
+        );
+
+    const seasonAvg =
+      numericValues.length
+        ? numericValues.reduce((a, b) => a + b, 0) /
+          numericValues.length
+        : null;
+
+    const rowCount =
+      Math.max(
+        1,
+        Math.ceil(episodes.length / cols)
+      );
+
+    const cardsH =
+      rowCount * WRAPPED.cellH +
+      Math.max(0, rowCount - 1) * WRAPPED.gapY;
+
+    const blockH =
+      WRAPPED.titleH +
+      WRAPPED.titleToCards +
+      cardsH;
+
+    sections.push({
+      seasonIndex: s,
+      episodes,
+      avg: seasonAvg,
+      rowCount,
+      cardsH,
+      blockH
+    });
+  }
+
+  const hasSeriesScore =
+    parseSeriesScoreInput() != null;
+
+  const needFooter =
+    !!logoImage ||
+    hasSeriesScore;
+
+  const scoreMetrics =
+    hasSeriesScore
+      ? measureSeriesScoreBlock(rows)
+      : null;
+
+  const { h: logoH } =
+    getLogoScaledSize();
+
+  let footerH = 0;
+
+  if (needFooter){
+    if (logoImage && hasSeriesScore && scoreMetrics){
+      footerH = Math.max(
+        FOOTER.minH,
+        SERIES_FOOT.stackTopPad +
+        logoH +
+        SERIES_FOOT.gapUnderLogo +
+        scoreMetrics.totalH +
+        SERIES_FOOT.padY
+      );
+    } else if (logoImage){
+      footerH = Math.max(
+        FOOTER.minH,
+        logoH + SERIES_FOOT.padY * 2
+      );
+    } else if (hasSeriesScore && scoreMetrics){
+      footerH = Math.max(
+        FOOTER.minH,
+        scoreMetrics.totalH +
+        SERIES_FOOT.padY * 2
+      );
+    }
+  }
+
+  const sectionsH =
+    sections.reduce(
+      (sum, section) =>
+        sum + section.blockH,
+      0
+    ) +
+    Math.max(
+      0,
+      sections.length - 1
+    ) * WRAPPED.sectionGap;
+
+  const footerTop =
+    WRAPPED.padTop +
+    sectionsH +
+    (needFooter ? WRAPPED.footerGap : 0);
+
+  const Hneeded =
+    footerTop +
+    footerH +
+    L.pad;
+
+  activeCanvas.height =
+    Math.max(
+      Math.ceil(Hneeded),
+      420
+    );
+
+  const H = activeCanvas.height;
+
+  activeCtx.clearRect(0, 0, W, H);
+  drawBackground(W, H);
+
+  let cursorY =
+    WRAPPED.padTop;
+
+  for (const section of sections){
+    const s =
+      section.seasonIndex;
+
+    /* Season title */
+    const title =
+      `Season ${s + 1}`;
+
+    activeCtx.save();
+
+    activeCtx.shadowColor =
+      "rgba(0,0,0,.88)";
+    activeCtx.shadowBlur = 7;
+    activeCtx.shadowOffsetY = 1;
+
+    activeCtx.font =
+      WRAPPED.seasonFont;
+
+    activeCtx.textAlign =
+      "left";
+
+    activeCtx.textBaseline =
+      "alphabetic";
+
+    activeCtx.fillStyle =
+      "rgba(255,255,255,.97)";
+
+    const titleBaseline =
+      cursorY + 30;
+
+    activeCtx.fillText(
+      title,
+      WRAPPED.padX,
+      titleBaseline
+    );
+
+    const titleWidth =
+      activeCtx.measureText(title).width;
+
+    if (
+      typeof section.avg === "number" &&
+      Number.isFinite(section.avg)
+    ){
+      const shownAvg =
+        Math.round(section.avg * 10) / 10;
+
+      activeCtx.font =
+        WRAPPED.avgFont;
+
+      activeCtx.fillStyle =
+        "rgba(255,255,255,.72)";
+
+      activeCtx.shadowColor =
+        "rgba(0,0,0,.94)";
+      activeCtx.shadowBlur = 6;
+
+      activeCtx.fillText(
+        ` (avg ${formatScore(shownAvg)})`,
+        WRAPPED.padX + titleWidth + 3,
+        titleBaseline
+      );
+    }
+
+    activeCtx.restore();
+
+    /* Episode cards */
+    const cardsY =
+      cursorY +
+      WRAPPED.titleH +
+      WRAPPED.titleToCards;
+
+    section.episodes.forEach(
+      (episode, index) => {
+        const row =
+          Math.floor(index / cols);
+
+        const col =
+          index % cols;
+
+        const x =
+          WRAPPED.padX +
+          col *
+            (WRAPPED.cellW + WRAPPED.gapX);
+
+        const y =
+          cardsY +
+          row *
+            (WRAPPED.cellH + WRAPPED.gapY);
+
+        const isUnknown =
+          episode.raw === "X";
+
+        const bucket =
+          isUnknown
+            ? unknown
+            : pickBucket(
+                episode.value,
+                minScore,
+                maxScore
+              );
+
+        activeCtx.fillStyle =
+          bucket.color;
+
+        roundRectPath(
+          x,
+          y,
+          WRAPPED.cellW,
+          WRAPPED.cellH,
+          WRAPPED.radius
+        );
+
+        activeCtx.fill();
+
+        const textColor =
+          isUnknown
+            ? unknown.text
+            : bucket.text;
+
+        const whiteLike =
+          String(textColor).toLowerCase().includes("255,255,255") ||
+          String(textColor).toLowerCase() === "#ffffff";
+
+        activeCtx.save();
+
+        if (whiteLike){
+          activeCtx.shadowColor =
+            "rgba(0,0,0,.38)";
+          activeCtx.shadowBlur = 2;
+          activeCtx.shadowOffsetY = 1;
+        }
+
+        activeCtx.fillStyle =
+          textColor;
+
+        activeCtx.font =
+          WRAPPED.epFont;
+
+        activeCtx.textAlign =
+          "left";
+
+        activeCtx.textBaseline =
+          "alphabetic";
+
+        activeCtx.globalAlpha =
+          0.76;
+
+        activeCtx.fillText(
+          `E${episode.episodeIndex + 1}`,
+          x + 8,
+          y + 25
+        );
+
+        activeCtx.globalAlpha = 1;
+
+        activeCtx.font =
+          WRAPPED.scoreFont;
+
+        activeCtx.textAlign =
+          "right";
+
+        activeCtx.textBaseline =
+          "alphabetic";
+
+        const scoreText =
+          isUnknown
+            ? "?"
+            : formatScore(
+                Number(episode.value)
+              );
+
+        activeCtx.fillText(
+          scoreText,
+          x + WRAPPED.cellW - 10,
+          y + WRAPPED.cellH - 10
+        );
+
+        activeCtx.restore();
+      }
+    );
+
+    cursorY +=
+      section.blockH +
+      WRAPPED.sectionGap;
+  }
+
+  /*
+    Same logo + global score footer logic as the normal Grid.
+  */
+  if (needFooter){
+    const stack =
+      !!logoImage &&
+      hasSeriesScore;
+
+    const logoRect =
+      stack
+        ? drawLogoInFooterStacked(
+            W,
+            footerTop
+          )
+        : (
+            logoImage
+              ? drawLogoInFooterCentered(
+                  W,
+                  footerTop,
+                  footerH
+                )
+              : null
+          );
+
+    drawSeriesScoreFooter(
+      W,
+      footerTop,
+      footerH,
+      logoRect,
+      rows
+    );
+  }
+}
+
+
 
 /* =========================
    GRAPH MODE
@@ -4201,6 +4994,11 @@ function syncDisplayUI(){
     );
   }
 
+  gridOptions.classList.toggle(
+    "hidden",
+    displayMode !== "grid"
+  );
+
   graphOptions.classList.toggle(
     "hidden",
     displayMode !== "graph"
@@ -4209,6 +5007,11 @@ function syncDisplayUI(){
   cardOptions.classList.toggle(
     "hidden",
     displayMode !== "cards"
+  );
+
+  gridWrappedBtn.setAttribute(
+    "aria-checked",
+    gridWrapped ? "true" : "false"
   );
 
   trendlineBtn.setAttribute(
@@ -4260,7 +5063,28 @@ function render(){
   } else if (displayMode === "cards"){
     renderSeasonalMode(seasons, rows, MIN_SCORE, MAX_SCORE);
   } else {
-    renderGridMode(seasons, rows, MIN_SCORE, MAX_SCORE);
+    if (gridWrapped){
+      renderGridWrappedMode(
+        seasons,
+        rows,
+        MIN_SCORE,
+        MAX_SCORE
+      );
+    } else if (gridView === "inverted"){
+      renderGridInvertedMode(
+        seasons,
+        rows,
+        MIN_SCORE,
+        MAX_SCORE
+      );
+    } else {
+      renderGridMode(
+        seasons,
+        rows,
+        MIN_SCORE,
+        MAX_SCORE
+      );
+    }
   }
 }
 
@@ -4286,7 +5110,11 @@ function exportPNG(){
           : "series_graph_episodic.png")
       : displayMode === "cards"
         ? "series_cards.png"
-        : "series_grid.png";
+        : gridWrapped
+          ? "series_grid_wrapped.png"
+          : gridView === "inverted"
+            ? "series_grid_inverted.png"
+            : "series_grid.png";
 
   exportCanvas.toBlob((blob) => {
     if (!blob) return;
@@ -4807,6 +5635,26 @@ cardModeBtn.addEventListener("click", () => {
 graphModeBtn.addEventListener("click", () => {
   displayMode = "graph";
   syncDisplayUI();
+  render();
+});
+
+gridViewSelect.addEventListener("change", () => {
+  gridView =
+    gridViewSelect.value === "inverted"
+      ? "inverted"
+      : "default";
+
+  render();
+});
+
+gridWrappedBtn.addEventListener("click", () => {
+  gridWrapped = !gridWrapped;
+
+  gridWrappedBtn.setAttribute(
+    "aria-checked",
+    gridWrapped ? "true" : "false"
+  );
+
   render();
 });
 
