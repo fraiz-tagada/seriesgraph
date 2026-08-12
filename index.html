@@ -2271,6 +2271,94 @@
     }
   }
 
+
+.icon-btn{
+  width:58px;
+  min-width:58px;
+  padding:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.icon-btn svg{
+  width:22px;
+  height:22px;
+  pointer-events:none;
+}
+
+
+/* =========================================================
+   Safe Background / Logo layout
+   Pure layout change: IDs and JavaScript remain untouched.
+========================================================= */
+
+.top-toolbar-row .right.assets-row{
+  display:flex !important;
+  flex:1 1 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:18px !important;
+  padding:6px 10px !important;
+}
+
+.assets-row .asset-group{
+  flex:1 1 0 !important;
+  min-width:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:9px !important;
+}
+
+.assets-row .asset-group > label{
+  flex:1 1 auto !important;
+  min-width:0 !important;
+  width:auto !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:9px !important;
+  white-space:nowrap !important;
+}
+
+.assets-row .asset-group input[type="file"]{
+  flex:1 1 auto !important;
+  min-width:90px !important;
+  width:100% !important;
+  max-width:none !important;
+  box-sizing:border-box !important;
+}
+
+.assets-row .asset-group .ghost{
+  flex:0 0 auto !important;
+  min-width:auto !important;
+  white-space:nowrap !important;
+}
+
+/* On narrow screens, keep the exact same controls but stack the two groups. */
+@media (max-width:760px){
+  .top-toolbar-row .right.assets-row{
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:stretch !important;
+    gap:10px !important;
+  }
+
+  .assets-row .asset-group{
+    width:100% !important;
+  }
+
+  .assets-row .asset-group > label{
+    flex:1 1 auto !important;
+  }
+
+  .assets-row .asset-group input[type="file"]{
+    min-width:0 !important;
+  }
+}
+
 </style>
 </head>
 
@@ -2290,20 +2378,33 @@
             </div>
           </div>
 
-          <button id="exportBtn" type="button">Export PNG</button>
+          <button id="exportBtn" type="button">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+     stroke="currentColor" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round"
+     aria-hidden="true">
+  <path d="M12 16V3"/>
+  <path d="M8 7l4-4 4 4"/>
+  <path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>
+</svg>
+</button>
         </div>
       </div>
 
-      <div class="right">
-        <label>Background
-          <input id="bgFile" type="file" accept="image/*" />
-        </label>
-        <button id="clearBgBtn" class="ghost" type="button">Clear</button>
+      <div class="right assets-row">
+        <div class="asset-group">
+          <label>Background
+            <input id="bgFile" type="file" accept="image/*" />
+          </label>
+          <button id="clearBgBtn" class="ghost" type="button">Clear</button>
+        </div>
 
-        <label>Logo
-          <input id="logoFile" type="file" accept="image/*" />
-        </label>
-        <button id="clearLogoBtn" class="ghost" type="button">Clear</button>
+        <div class="asset-group">
+          <label>Logo
+            <input id="logoFile" type="file" accept="image/*" />
+          </label>
+          <button id="clearLogoBtn" class="ghost" type="button">Clear</button>
+        </div>
       </div>
     </div>
 
@@ -2622,8 +2723,8 @@ const GRAPH = {
 };
 
 const GRAPH_FOOTER = {
-  gapAbove: 10,
-  minH: 82
+  gapAbove: FOOTER.gapFromAvg,
+  minH: FOOTER.minH
 };
 
 const exportBtn = document.getElementById("exportBtn");
@@ -2939,6 +3040,53 @@ function measureSeriesScoreBlock(rows){
 }
 
 /* dessine note en footer (X jamais lié au logo) */
+
+function computeStandardFooterHeight(rows, hasLogo = !!logoImage){
+  const hasSeriesScore =
+    parseSeriesScoreInput() != null;
+
+  if (!hasLogo && !hasSeriesScore){
+    return 0;
+  }
+
+  const m =
+    hasSeriesScore
+      ? measureSeriesScoreBlock(rows)
+      : null;
+
+  const { h: logoH } =
+    getLogoScaledSize();
+
+  if (hasLogo && hasSeriesScore && m){
+    return Math.max(
+      FOOTER.minH,
+      SERIES_FOOT.stackTopPad +
+      logoH +
+      SERIES_FOOT.gapUnderLogo +
+      m.totalH +
+      SERIES_FOOT.padY
+    );
+  }
+
+  if (hasLogo){
+    return Math.max(
+      FOOTER.minH,
+      logoH +
+      SERIES_FOOT.padY * 2
+    );
+  }
+
+  if (hasSeriesScore && m){
+    return Math.max(
+      FOOTER.minH,
+      m.totalH +
+      SERIES_FOOT.padY * 2
+    );
+  }
+
+  return FOOTER.minH;
+}
+
 function drawSeriesScoreFooter(W, footerTop, footerH, logoRectOrNull, rows){
   const m = measureSeriesScoreBlock(rows);
   if (!m) return;
@@ -3193,95 +3341,152 @@ function renderSeasonalMode(seasons, rows, minScore, maxScore){
   activeCanvas.width = 900;
   const W = activeCanvas.width;
 
-  const cols = (W >= CARD.colsMinW) ? 2 : 1;
+  const cols =
+    (W >= CARD.colsMinW)
+      ? 2
+      : 1;
+
   const pad = CARD.pad;
   const gap = CARD.gap;
 
-  const cardW = (cols === 2)
-    ? Math.floor((W - pad*2 - gap) / 2)
-    : (W - pad*2);
+  const cardW =
+    (cols === 2)
+      ? Math.floor(
+          (W - pad * 2 - gap) / 2
+        )
+      : (W - pad * 2);
 
   const cardH = CARD.cardH;
 
-  let items = computeSeasonAverages(seasons, rows);
+  /*
+    Cards only contains season cards.
+    Logo + global score always live in the same footer
+    used by Grid — never inside a spare card.
+  */
+  const items =
+    computeSeasonAverages(
+      seasons,
+      rows
+    );
 
-  const hasSeriesScore = (parseSeriesScoreInput() != null);
-  const useInlineLogoFiller = (cols === 2) && (items.length % 2 === 1) && !!logoImage;
-  if (useInlineLogoFiller){
-    items = [...items, { type: "logo" }];
+  const rowsCount =
+    Math.ceil(
+      items.length / cols
+    );
+
+  const cardsBlockH =
+    (rowsCount * cardH) +
+    (
+      Math.max(
+        0,
+        rowsCount - 1
+      ) * gap
+    );
+
+  const hasSeriesScore =
+    parseSeriesScoreInput() != null;
+
+  const needFooter =
+    !!logoImage ||
+    hasSeriesScore;
+
+  const footerH =
+    computeStandardFooterHeight(rows);
+
+  const footerGap =
+    needFooter
+      ? FOOTER.gapFromAvg
+      : 0;
+
+  const footerTop =
+    pad +
+    cardsBlockH +
+    footerGap;
+
+  const Hneeded =
+    footerTop +
+    footerH +
+    pad;
+
+  activeCanvas.height =
+    Math.max(
+      Math.ceil(Hneeded),
+      420
+    );
+
+  const H =
+    activeCanvas.height;
+
+  activeCtx.clearRect(
+    0,
+    0,
+    W,
+    H
+  );
+
+  drawBackground(
+    W,
+    H
+  );
+
+  for (
+    let i = 0;
+    i < items.length;
+    i++
+  ){
+    const r =
+      Math.floor(i / cols);
+
+    const c =
+      i % cols;
+
+    const x =
+      pad +
+      c * (cardW + gap);
+
+    const y =
+      pad +
+      r * (cardH + gap);
+
+    drawSeasonCard(
+      x,
+      y,
+      cardW,
+      cardH,
+      items[i],
+      minScore,
+      maxScore
+    );
   }
 
-  const useFooterLogo = !!logoImage && !useInlineLogoFiller;
-
-  const rowsCount = Math.ceil(items.length / cols);
-  const cardsBlockH = (rowsCount * cardH) + (Math.max(0, rowsCount - 1) * gap);
-
-  let needFooter = useFooterLogo || hasSeriesScore;
-
-  let footerH = 0;
   if (needFooter){
-    const m = hasSeriesScore ? measureSeriesScoreBlock(rows) : null;
-    const { h: logoH } = getLogoScaledSize();
+    const stack =
+      !!logoImage &&
+      hasSeriesScore;
 
-    if (useFooterLogo && hasSeriesScore && m){
-      footerH = Math.max(
-        FOOTER.minH,
-        SERIES_FOOT.stackTopPad + logoH + SERIES_FOOT.gapUnderLogo + m.totalH + SERIES_FOOT.padY
-      );
-    } else if (useFooterLogo){
-      footerH = Math.max(FOOTER.minH, logoH + SERIES_FOOT.padY*2);
-    } else if (hasSeriesScore && m){
-      footerH = Math.max(FOOTER.minH, m.totalH + SERIES_FOOT.padY*2);
-    } else {
-      footerH = FOOTER.minH;
-    }
-  }
+    const logoRect =
+      stack
+        ? drawLogoInFooterStacked(
+            W,
+            footerTop
+          )
+        : (
+            logoImage
+              ? drawLogoInFooterCentered(
+                  W,
+                  footerTop,
+                  footerH
+                )
+              : null
+          );
 
-  const footerGap = needFooter ? 6 : 0;
-  const Hneeded = pad + cardsBlockH + footerGap + footerH + pad;
-  activeCanvas.height = Math.max(Math.ceil(Hneeded), 420);
-
-  const H = activeCanvas.height;
-  activeCtx.clearRect(0,0,W,H);
-  drawBackground(W,H);
-
-  let fillerHadNote = false;
-
-  for (let i=0; i<items.length; i++){
-    const r = Math.floor(i / cols);
-    const c = i % cols;
-    const x = pad + c * (cardW + gap);
-    const y = pad + r * (cardH + gap);
-
-    const item = items[i];
-
-    if (item && item.type === "logo"){
-      const lr = drawLogoCardInline(x, y, cardW, cardH);
-      if (hasSeriesScore){
-        fillerHadNote = drawSeriesScoreUnderInlineLogo(lr, rows);
-        if (!fillerHadNote){
-          needFooter = true;
-        }
-      }
-      continue;
-    }
-
-    drawSeasonCard(x, y, cardW, cardH, item, minScore, maxScore);
-  }
-
-  if (needFooter){
-    const footerTop = pad + cardsBlockH + footerGap;
-
-    const hasScore = (parseSeriesScoreInput() != null);
-    const stack = !!logoImage && hasScore && useFooterLogo;
-
-    const logoRect = stack
-      ? drawLogoInFooterStacked(W, footerTop)
-      : (useFooterLogo ? drawLogoInFooterCentered(W, footerTop, footerH) : null);
-
-    if (!(useInlineLogoFiller && fillerHadNote)){
-      drawSeriesScoreFooter(W, footerTop, footerH, logoRect, rows);
-    }
+    drawSeriesScoreFooter(
+      W,
+      footerTop,
+      footerH,
+      logoRect,
+      rows
+    );
   }
 }
 
@@ -4528,39 +4733,8 @@ function renderEpisodicGraph(seasons, rows){
     !!logoImage ||
     parseSeriesScoreInput() != null;
 
-  let graphFooterH = 0;
-
-  if (graphHasFooter){
-    const scoreMetrics =
-      measureSeriesScoreBlock(rows);
-
-    const { h: logoH } =
-      getLogoScaledSize();
-
-    if (logoImage && scoreMetrics){
-      graphFooterH = Math.max(
-        GRAPH_FOOTER.minH,
-        SERIES_FOOT.stackTopPad +
-        logoH +
-        SERIES_FOOT.gapUnderLogo +
-        scoreMetrics.totalH +
-        SERIES_FOOT.padY
-      );
-
-    } else if (logoImage){
-      graphFooterH = Math.max(
-        GRAPH_FOOTER.minH,
-        logoH + SERIES_FOOT.padY * 2
-      );
-
-    } else if (scoreMetrics){
-      graphFooterH = Math.max(
-        GRAPH_FOOTER.minH,
-        scoreMetrics.totalH +
-        SERIES_FOOT.padY * 2
-      );
-    }
-  }
+  const graphFooterH =
+    computeStandardFooterHeight(rows);
 
   activeCanvas.height =
     GRAPH.H +
@@ -4688,37 +4862,8 @@ const graphHasFooter =
   !!logoImage ||
   parseSeriesScoreInput() != null;
 
-let graphFooterH = 0;
-
-if (graphHasFooter){
-  const scoreMetrics =
-    measureSeriesScoreBlock(rows);
-
-  const { h: logoH } =
-    getLogoScaledSize();
-
-  if (logoImage && scoreMetrics){
-    graphFooterH = Math.max(
-      GRAPH_FOOTER.minH,
-      SERIES_FOOT.stackTopPad +
-      logoH +
-      SERIES_FOOT.gapUnderLogo +
-      scoreMetrics.totalH +
-      SERIES_FOOT.padY
-    );
-  } else if (logoImage){
-    graphFooterH = Math.max(
-      GRAPH_FOOTER.minH,
-      logoH + SERIES_FOOT.padY * 2
-    );
-  } else if (scoreMetrics){
-    graphFooterH = Math.max(
-      GRAPH_FOOTER.minH,
-      scoreMetrics.totalH +
-      SERIES_FOOT.padY * 2
-    );
-  }
-}
+const graphFooterH =
+  computeStandardFooterHeight(rows);
 
 activeCanvas.height =
   GRAPH.H +
@@ -4936,26 +5081,34 @@ drawGraphSeriesFooter(rows);
    GRAPH FOOTER
 ========================= */
 function drawGraphSeriesFooter(rows){
-  const hasScore =
+  const hasSeriesScore =
     parseSeriesScoreInput() != null;
-  const hasLogo =
-    !!logoImage;
-  if (!hasScore && !hasLogo){
+
+  const needFooter =
+    !!logoImage ||
+    hasSeriesScore;
+
+  if (!needFooter){
     return;
   }
 
-  const W = activeCanvas.width;
+  const W =
+    activeCanvas.width;
 
+  /*
+    Same spacing and layout contract as Grid:
+    content -> FOOTER.gapFromAvg -> footer.
+  */
   const footerTop =
     GRAPH.H +
-    GRAPH_FOOTER.gapAbove;
+    FOOTER.gapFromAvg;
 
   const footerH =
-    activeCanvas.height -
-    footerTop;
+    computeStandardFooterHeight(rows);
 
   const stack =
-    hasLogo && hasScore;
+    !!logoImage &&
+    hasSeriesScore;
 
   const logoRect =
     stack
@@ -4963,13 +5116,15 @@ function drawGraphSeriesFooter(rows){
           W,
           footerTop
         )
-      : hasLogo
-        ? drawLogoInFooterCentered(
-            W,
-            footerTop,
-            footerH
-          )
-        : null;
+      : (
+          logoImage
+            ? drawLogoInFooterCentered(
+                W,
+                footerTop,
+                footerH
+              )
+            : null
+        );
 
   drawSeriesScoreFooter(
     W,
